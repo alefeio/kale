@@ -75,7 +75,7 @@ npm run db:seed
 SEED_DEMO_DATA=true npm run db:seed
 ```
 
-Em produção, `SEED_DEMO_DATA` permanece `false`. O seed de presentes é idempotente. Os convites `demo-individual`, `demo-casal` e `demo-familia` só são criados quando a flag está exatamente em `true`, e uma segunda execução não os duplica.
+Em produção, `SEED_DEMO_DATA` permanece `false`. O seed grava os 18 presentes reais do chá de panela e é idempotente. Os convites `demo-individual`, `demo-casal` e `demo-familia` só são criados quando a flag está exatamente em `true`, e uma segunda execução não os duplica. A preparação do banco real não usa essa flag.
 
 ## Scripts
 
@@ -222,19 +222,27 @@ DIRECT_URL
 
 ## Sprint atual
 
-Sprint 2: persistência real de convites, RSVP, presentes, reservas e mensagens. Ainda sem painel administrativo.
+O banco local está preparado para dados reais. A lista do chá de panela tem 18 presentes, sem fotos e sem reservas. Convites de demonstração não fazem parte desse banco.
 
 ## Pendências
 
-- Criar `DATABASE_URL_POOLED` antes do tráfego real
 - Separar os bancos de Production e Preview quando as migrations passarem a ser desenvolvidas em branches
 - Chave PIX real. O payload BR Code já está preparado; a imagem do QR segue demonstrativa
-- Fotografias individuais dos presentes
+- Fotografias dos 18 presentes. Enquanto não existirem, os cards usam o desenho já existente
 - `public/images/casal-final.jpg`, se quiserem fechar o site com outra foto do casal
 - Cartão de Open Graph desenhado, se quiserem substituir o recorte de 1200×630
 - Confirmar `NEXT_PUBLIC_SITE_URL=https://kaeale.vercel.app` no painel da Vercel e trocar se houver domínio próprio
-- Convites reais, com tokens imprevisíveis. Os códigos de demonstração não devem ser usados como convites verdadeiros
+- Convites reais, com tokens imprevisíveis
 
-## Próximas etapas
+## Próximo módulo — Admin
 
-Painel, autenticação, CRUD de convidados e presentes, exportação e PIX com confirmação ficam para outra sprint.
+- autenticação
+- convidados
+- convites
+- RSVP
+- presentes
+- reservas
+- mensagens
+
+Na Sprint 3, a reserva de presente continua exigindo `donorName`. O contato ou WhatsApp passará a ser obrigatório, e uma reserva poderá ser associada a um convite válido. Essa associação ainda não existe.
+

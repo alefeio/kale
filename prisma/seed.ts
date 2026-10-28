@@ -16,18 +16,24 @@ main().catch(() => {
 })
 
 const gifts = [
-  { slug: "jogo-de-panelas", name: "Jogo de panelas", category: "KITCHEN", description: "Para os almoços de domingo.", image: "/images/gifts/jogo-de-panelas.jpg" },
-  { slug: "jogo-de-pratos", name: "Jogo de pratos", category: "TABLE", description: "Um serviço simples para a mesa nova.", image: "/images/gifts/jogo-de-pratos.jpg" },
-  { slug: "jogo-de-talheres", name: "Jogo de talheres", category: "TABLE", image: "/images/gifts/jogo-de-talheres.jpg" },
-  { slug: "jogo-de-copos", name: "Jogo de copos", category: "TABLE", image: "/images/gifts/jogo-de-copos.jpg" },
-  { slug: "jogo-de-tacas", name: "Jogo de taças", category: "TABLE", description: "Para brindar com calma.", image: "/images/gifts/jogo-de-tacas.jpg" },
-  { slug: "liquidificador", name: "Liquidificador", category: "APPLIANCES", image: "/images/gifts/liquidificador.jpg" },
-  { slug: "sanduicheira", name: "Sanduicheira", category: "APPLIANCES", image: "/images/gifts/sanduicheira.jpg" },
-  { slug: "cafeteira", name: "Cafeteira", category: "APPLIANCES", description: "O café da manhã da casa nova.", image: "/images/gifts/cafeteira.jpg" },
-  { slug: "jogo-de-cama", name: "Jogo de cama", category: "HOME", image: "/images/gifts/jogo-de-cama.jpg" },
-  { slug: "jogo-de-toalhas", name: "Jogo de toalhas", category: "BATH", image: "/images/gifts/jogo-de-toalhas.jpg" },
-  { slug: "kit-de-utensilios", name: "Kit de utensílios", category: "KITCHEN", image: "/images/gifts/kit-de-utensilios.jpg" },
-  { slug: "assadeira", name: "Assadeira", category: "KITCHEN", description: "Para o bolo de sempre.", image: "/images/gifts/assadeira.jpg" },
+  { slug: "jogo-de-pratos", name: "Jogo de pratos", category: "TABLE", sortOrder: 1 },
+  { slug: "jogo-de-copos", name: "Jogo de copos", category: "TABLE", sortOrder: 2 },
+  { slug: "jogo-de-canecas", name: "Jogo de canecas", category: "TABLE", sortOrder: 3 },
+  { slug: "jogo-de-talher", name: "Jogo de talher", category: "TABLE", sortOrder: 4 },
+  { slug: "tabua-de-cortar", name: "Tábua de cortar", category: "KITCHEN", sortOrder: 5 },
+  { slug: "potes-de-mantimentos", name: "Potes de mantimentos", category: "KITCHEN", sortOrder: 6 },
+  { slug: "porta-temperos", name: "Porta temperos", category: "KITCHEN", sortOrder: 7 },
+  { slug: "jarras-para-agua", name: "Jarras para água", category: "TABLE", sortOrder: 8 },
+  { slug: "tigelas-porcelana", name: "Tigelas porcelana", category: "TABLE", sortOrder: 9 },
+  { slug: "jogo-de-panelas", name: "Jogo de panelas", category: "KITCHEN", sortOrder: 10 },
+  { slug: "jogo-americano", name: "Jogo americano", category: "TABLE", sortOrder: 11 },
+  { slug: "toalhas-de-mesa-ou-centro-de-mesa", name: "Toalhas de mesa ou centro de mesa", category: "TABLE", sortOrder: 12 },
+  { slug: "guardanapos", name: "Guardanapos", category: "TABLE", sortOrder: 13 },
+  { slug: "toalhas-de-banho", name: "Toalhas de banho", category: "BATH", sortOrder: 14 },
+  { slug: "lixeiras", name: "Lixeiras", category: "HOME", sortOrder: 15 },
+  { slug: "jogo-de-cama-de-casal", name: "Jogo de cama de casal", category: "HOME", sortOrder: 16 },
+  { slug: "tapete-de-sala", name: "Tapete de sala", category: "HOME", sortOrder: 17 },
+  { slug: "tapete-de-banheiro", name: "Tapete de banheiro", category: "BATH", sortOrder: 18 },
 ] as const
 
 const demoInvitations = [
@@ -52,24 +58,24 @@ const demoInvitations = [
 ]
 
 async function seedGifts(prisma: Awaited<typeof import("../src/lib/db/prisma")>["prisma"]) {
-  for (const [index, gift] of gifts.entries()) {
+  for (const gift of gifts) {
     await prisma.gift.upsert({
       where: { slug: gift.slug },
       update: {
         name: gift.name,
         category: gift.category,
-        description: "description" in gift ? gift.description : null,
-        image: gift.image,
-        sortOrder: index,
+        description: null,
+        image: null,
+        sortOrder: gift.sortOrder,
         active: true,
       },
       create: {
         slug: gift.slug,
         name: gift.name,
         category: gift.category,
-        description: "description" in gift ? gift.description : null,
-        image: gift.image,
-        sortOrder: index,
+        description: null,
+        image: null,
+        sortOrder: gift.sortOrder,
       },
     })
   }

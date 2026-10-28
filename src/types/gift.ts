@@ -20,7 +20,9 @@ export interface Gift {
 }
 
 export interface GiftReservationData {
-  reservedAt?: string
+  donorName: string
+  donorContact?: string
+  message?: string
 }
 
 export const giftCategoryLabels: Record<GiftCategory, string> = {

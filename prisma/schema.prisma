@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum GiftCategory {
+  KITCHEN
+  TABLE
+  HOME
+  APPLIANCES
+  BATH
+}
+
+model Invitation {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  label     String
+  greeting  String?
+  active    Boolean  @default(true)
+
+  guests   Guest[]
+  response RsvpResponse?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([token])
+}
+
+model Guest {
+  id           String   @id @default(cuid())
+  invitationId String
+  name         String
+  attending    Boolean?
+  sortOrder    Int      @default(0)
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([invitationId])
+}
+
+model RsvpResponse {
+  id           String   @id @default(cuid())
+  invitationId String   @unique
+  note         String?
+  respondedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+}
+
+model Gift {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  category    GiftCategory
+  description String?
+  image       String?
+  sortOrder   Int          @default(0)
+  active      Boolean      @default(true)
+
+  reservation GiftReservation?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GiftReservation {
+  id           String   @id @default(cuid())
+  giftId       String   @unique
+  donorName    String
+  donorContact String?
+  message      String?
+  reservedAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  gift Gift @relation(fields: [giftId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  name      String
+  message   String
+  createdAt DateTime @default(now())
+}

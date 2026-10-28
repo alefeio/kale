@@ -22,6 +22,10 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
     return () => setSelected(null)
   }, [])
 
+  function reloadGifts() {
+    giftService.getGifts().then(setGifts).catch(() => setGifts([]))
+  }
+
   useEffect(() => {
     let active = true
     giftService.getGifts().then((items) => {
@@ -110,6 +114,7 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
             current?.map((item) => (item.id === updated.id ? { ...item, status: "reserved" } : item)) ?? current,
           )
         }}
+        onConflict={reloadGifts}
       />
     </section>
   )

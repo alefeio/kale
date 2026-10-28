@@ -39,6 +39,7 @@ model Guest {
   id           String   @id @default(cuid())
   invitationId String
   name         String
+  whatsapp     String?
   attending    Boolean?
   sortOrder    Int      @default(0)
 

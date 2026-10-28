@@ -14,6 +14,20 @@ export const brazilianMobileSchema = z
   .transform(normalizeWhatsapp)
   .refine((value) => value.length === 11 && value[2] === "9")
 
+export const optionalBrazilianMobileSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value : ""),
+  z
+    .string()
+    .trim()
+    .transform((value) => {
+      const digits = normalizeWhatsapp(value)
+      return digits.length === 0 ? null : digits
+    })
+    .refine((value) => value === null || (value.length === 11 && value[2] === "9"), {
+      message: "Informe um WhatsApp válido ou deixe o campo vazio.",
+    }),
+)
+
 function emptyToUndefined(value: unknown) {
   if (typeof value !== "string") return value
   const trimmed = value.trim()
@@ -64,14 +78,16 @@ export const updateInvitationSchema = z.object({
   active: z.boolean(),
 })
 
-export const guestNameSchema = z.object({
+export const updateGuestSchema = z.object({
   id: recordIdSchema,
   name: z.string().trim().min(1).max(120),
+  whatsapp: optionalBrazilianMobileSchema,
 })
 
 export const addGuestSchema = z.object({
   invitationId: recordIdSchema,
   name: z.string().trim().min(1).max(120),
+  whatsapp: optionalBrazilianMobileSchema,
 })
 
 export const giftCategorySchema = z.enum(["KITCHEN", "TABLE", "HOME", "APPLIANCES", "BATH"])

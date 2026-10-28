@@ -8,13 +8,37 @@ import {
   regenerateInvitationCode,
   regenerateInvitationLink,
   removeGuest,
-  renameGuest,
+  updateGuest,
   updateInvitation,
   type AdminActionResult,
 } from "@/actions/admin"
 import { CopyInvitation } from "@/components/admin/CopyInvitation"
+import { formatBrazilianMobile } from "@/lib/phone"
 
-type GuestItem = { id: string; name: string; attending: boolean | null }
+type GuestItem = { id: string; name: string; whatsapp: string | null; attending: boolean | null }
+
+function WhatsappField({
+  id,
+  value,
+  onChange,
+}: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <input
+      id={id}
+      name="whatsapp"
+      inputMode="numeric"
+      autoComplete="tel"
+      placeholder="(91) 99999-9999"
+      value={value}
+      onChange={(event) => onChange(formatBrazilianMobile(event.target.value))}
+      className="field mt-2"
+    />
+  )
+}
 
 export function InvitationEditor({
   invitation,
@@ -33,6 +57,8 @@ export function InvitationEditor({
   const [message, setMessage] = useState("")
   const [guestNotice, setGuestNotice] = useState("")
   const [guestErrors, setGuestErrors] = useState<Record<string, string>>({})
+  const [newWhatsapp, setNewWhatsapp] = useState("")
+  const [addGuestError, setAddGuestError] = useState("")
   const [shareOverride, setShareOverride] = useState<typeof invitation.share | null>(null)
   const [securityNotice, setSecurityNotice] = useState("")
   const [deleteError, setDeleteError] = useState("")
@@ -100,90 +126,98 @@ export function InvitationEditor({
         {guestNotice ? <p role="status" className="mt-3 text-sm text-olive-dark">{guestNotice}</p> : null}
         <ul className="mt-4 flex flex-col gap-4">
           {invitation.guests.map((guest) => (
-            <li key={guest.id} className="flex flex-col gap-2 border-b border-olive/10 pb-4 sm:flex-row sm:items-end">
-              <form
-                className="flex flex-1 flex-col gap-2 sm:flex-row"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  const form = new FormData(event.currentTarget)
-                  setError("")
-                  startTransition(async () => {
-                    apply(await renameGuest({ id: guest.id, name: String(form.get("name") ?? "") }))
-                  })
-                }}
-              >
-                <label className="flex-1 text-sm text-brown">
-                  Nome
-                  <input name="name" defaultValue={guest.name} required className="field mt-2" />
-                </label>
-                <button type="submit" className="btn btn-secondary" disabled={pending}>
-                  Salvar nome
-                </button>
-              </form>
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  className="btn btn-ghost w-full sm:w-auto"
-                  disabled={pending}
-                  onClick={() => {
-                    if (invitation.active && invitation.guests.length <= 1) {
-                      setGuestErrors((current) => ({
-                        ...current,
-                        [guest.id]:
-                          "Este é o último convidado deste convite. Adicione outro convidado ou exclua o convite inteiro.",
-                      }))
-                      return
-                    }
-                    const prompt =
-                      guest.attending === null
-                        ? "Remover este convidado?"
-                        : "Este convidado já respondeu ao RSVP.\n\nAo removê-lo, a resposta individual será perdida.\n\nDeseja continuar?"
-                    if (!window.confirm(prompt)) return
-                    setGuestErrors((current) => ({ ...current, [guest.id]: "" }))
-                    startTransition(async () => {
-                      const response = await removeGuest(guest.id)
-                      if (!response.ok) {
-                        setGuestErrors((current) => ({
-                          ...current,
-                          [guest.id]: response.error ?? "Não foi possível remover.",
-                        }))
-                        return
-                      }
-                      setGuestNotice(response.message ?? "Convidado removido.")
-                      router.refresh()
-                    })
-                  }}
-                >
-                  Remover
-                </button>
-                {guestErrors[guest.id] ? (
-                  <p role="alert" className="max-w-xs text-sm text-olive-dark">
-                    {guestErrors[guest.id]}
-                  </p>
-                ) : null}
-              </div>
-            </li>
+            <GuestRow
+              key={guest.id}
+              guest={guest}
+              pending={pending}
+              error={guestErrors[guest.id] ?? ""}
+              onSave={(name, whatsapp) => {
+                setGuestErrors((current) => ({ ...current, [guest.id]: "" }))
+                startTransition(async () => {
+                  const response = await updateGuest({ id: guest.id, name, whatsapp })
+                  if (!response.ok) {
+                    setGuestErrors((current) => ({
+                      ...current,
+                      [guest.id]: response.error ?? "Não foi possível salvar.",
+                    }))
+                    return
+                  }
+                  setGuestNotice(response.message ?? "Convidado atualizado.")
+                  router.refresh()
+                })
+              }}
+              onRemove={() => {
+                if (invitation.active && invitation.guests.length <= 1) {
+                  setGuestErrors((current) => ({
+                    ...current,
+                    [guest.id]:
+                      "Este é o último convidado deste convite. Adicione outro convidado ou exclua o convite inteiro.",
+                  }))
+                  return
+                }
+                const prompt =
+                  guest.attending === null
+                    ? "Remover este convidado?"
+                    : "Este convidado já respondeu ao RSVP.\n\nAo removê-lo, a resposta individual será perdida.\n\nDeseja continuar?"
+                if (!window.confirm(prompt)) return
+                setGuestErrors((current) => ({ ...current, [guest.id]: "" }))
+                startTransition(async () => {
+                  const response = await removeGuest(guest.id)
+                  if (!response.ok) {
+                    setGuestErrors((current) => ({
+                      ...current,
+                      [guest.id]: response.error ?? "Não foi possível remover.",
+                    }))
+                    return
+                  }
+                  setGuestNotice(response.message ?? "Convidado removido.")
+                  router.refresh()
+                })
+              }}
+            />
           ))}
         </ul>
         <form
-          className="mt-4 flex flex-col gap-3 sm:flex-row"
+          className="mt-6 flex flex-col gap-3"
           onSubmit={(event) => {
             event.preventDefault()
             const formElement = event.currentTarget
             const form = new FormData(formElement)
-            setError("")
+            setAddGuestError("")
             startTransition(async () => {
-              const response = await addGuest({ invitationId: invitation.id, name: String(form.get("name") ?? "") })
-              apply(response)
-              if (response.ok) formElement.reset()
+              const response = await addGuest({
+                invitationId: invitation.id,
+                name: String(form.get("name") ?? ""),
+                whatsapp: newWhatsapp,
+              })
+              if (!response.ok) {
+                setAddGuestError(response.error ?? "Não foi possível adicionar.")
+                return
+              }
+              setGuestNotice(response.message ?? "Convidado adicionado.")
+              setNewWhatsapp("")
+              formElement.reset()
+              router.refresh()
             })
           }}
         >
-          <label className="flex-1 text-sm text-brown">
-            Novo convidado
-            <input name="name" required className="field mt-2" />
-          </label>
-          <button type="submit" className="btn btn-secondary self-end" disabled={pending}>
+          <h3 className="text-sm text-brown">Novo convidado</h3>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <label htmlFor="novo-convidado-nome" className="min-w-0 flex-1 text-sm text-brown">
+              Nome *
+              <input id="novo-convidado-nome" name="name" required className="field mt-2" />
+            </label>
+            <label htmlFor="novo-convidado-whatsapp" className="min-w-0 flex-1 text-sm text-brown">
+              WhatsApp (opcional)
+              <WhatsappField id="novo-convidado-whatsapp" value={newWhatsapp} onChange={setNewWhatsapp} />
+            </label>
+          </div>
+          {addGuestError ? (
+            <p role="alert" className="text-sm text-olive-dark">
+              {addGuestError}
+            </p>
+          ) : null}
+          <button type="submit" className="btn btn-secondary w-full self-start sm:w-auto" disabled={pending}>
             Adicionar
           </button>
         </form>
@@ -259,5 +293,64 @@ export function InvitationEditor({
         </button>
       </section>
     </div>
+  )
+}
+
+function GuestRow({
+  guest,
+  pending,
+  error,
+  onSave,
+  onRemove,
+}: {
+  guest: GuestItem
+  pending: boolean
+  error: string
+  onSave: (name: string, whatsapp: string) => void
+  onRemove: () => void
+}) {
+  const stored = formatBrazilianMobile(guest.whatsapp ?? "")
+  const [whatsapp, setWhatsapp] = useState(stored)
+  const [synced, setSynced] = useState(stored)
+  if (synced !== stored) {
+    setSynced(stored)
+    setWhatsapp(stored)
+  }
+
+  return (
+    <li className="border-b border-olive/10 pb-4">
+      <form
+        className="flex flex-col gap-3"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const form = new FormData(event.currentTarget)
+          onSave(String(form.get("name") ?? ""), whatsapp)
+        }}
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+          <label htmlFor={`nome-${guest.id}`} className="min-w-0 flex-1 text-sm text-brown">
+            Nome
+            <input id={`nome-${guest.id}`} name="name" defaultValue={guest.name} required className="field mt-2" />
+          </label>
+          <label htmlFor={`whatsapp-${guest.id}`} className="min-w-0 flex-1 text-sm text-brown">
+            WhatsApp (opcional)
+            <WhatsappField id={`whatsapp-${guest.id}`} value={whatsapp} onChange={setWhatsapp} />
+          </label>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button type="submit" className="btn btn-secondary w-full sm:w-auto" disabled={pending}>
+            Salvar
+          </button>
+          <button type="button" className="btn btn-ghost w-full sm:w-auto" disabled={pending} onClick={onRemove}>
+            Remover
+          </button>
+        </div>
+        {error ? (
+          <p role="alert" className="text-sm text-olive-dark">
+            {error}
+          </p>
+        ) : null}
+      </form>
+    </li>
   )
 }

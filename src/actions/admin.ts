@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import type { ZodError } from "zod"
 import { requireAdmin } from "@/lib/admin"
 import { createUniqueInvitationCode } from "@/lib/invitation-code"
 import { invitationShareText, invitationUrl } from "@/lib/invitation-link"
@@ -10,8 +11,8 @@ import {
   addGuestSchema,
   createInvitationSchema,
   giftInputSchema,
-  guestNameSchema,
   recordIdSchema,
+  updateGuestSchema,
   updateInvitationSchema,
 } from "@/lib/validation"
 
@@ -66,7 +67,14 @@ export async function createInvitation(input: unknown): Promise<AdminActionResul
 
   revalidatePath("/admin")
   revalidatePath("/admin/convites")
-  return { ok: true, message: "Convite criado.", ...credentials(created.token, created.code) }
+  return { ok: true, message: "Convite criado com sucesso.", ...credentials(created.token, created.code) }
+}
+
+function guestInputError(error: ZodError) {
+  if (error.issues.some((issue) => issue.path.includes("whatsapp"))) {
+    return "Informe um WhatsApp válido ou deixe o campo vazio."
+  }
+  return "Informe o nome do convidado."
 }
 
 export async function updateInvitation(input: unknown): Promise<AdminActionResult> {
@@ -92,7 +100,7 @@ export async function updateInvitation(input: unknown): Promise<AdminActionResul
 export async function addGuest(input: unknown): Promise<AdminActionResult> {
   await requireAdmin()
   const parsed = addGuestSchema.safeParse(input)
-  if (!parsed.success) return { ok: false, error: "Informe o nome do convidado." }
+  if (!parsed.success) return { ok: false, error: guestInputError(parsed.error) }
 
   const last = await prisma.guest.findFirst({
     where: { invitationId: parsed.data.invitationId },
@@ -104,6 +112,7 @@ export async function addGuest(input: unknown): Promise<AdminActionResult> {
     data: {
       invitationId: parsed.data.invitationId,
       name: parsed.data.name,
+      whatsapp: parsed.data.whatsapp,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   })
@@ -113,14 +122,14 @@ export async function addGuest(input: unknown): Promise<AdminActionResult> {
   return { ok: true, message: "Convidado adicionado." }
 }
 
-export async function renameGuest(input: unknown): Promise<AdminActionResult> {
+export async function updateGuest(input: unknown): Promise<AdminActionResult> {
   await requireAdmin()
-  const parsed = guestNameSchema.safeParse(input)
-  if (!parsed.success) return { ok: false, error: "Informe o nome do convidado." }
+  const parsed = updateGuestSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: guestInputError(parsed.error) }
 
   const guest = await prisma.guest.update({
     where: { id: parsed.data.id },
-    data: { name: parsed.data.name },
+    data: { name: parsed.data.name, whatsapp: parsed.data.whatsapp },
     select: { invitationId: true },
   })
 

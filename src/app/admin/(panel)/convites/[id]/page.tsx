@@ -20,7 +20,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ id:
       active: true,
       guests: {
         orderBy: { sortOrder: "asc" },
-        select: { id: true, name: true, attending: true },
+        select: { id: true, name: true, whatsapp: true, attending: true },
       },
     },
   })

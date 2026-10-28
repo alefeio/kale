@@ -93,13 +93,13 @@ Tudo que é dado do casamento fica em `src/config/wedding.ts`: nomes, data, loca
 
 A chave PIX ainda é o marcador `CHAVE_PIX_A_DEFINIR`. Enquanto estiver assim, o site mostra “Chave PIX a definir”, não copia esse texto e o QR permanece demonstrativo. Quando a chave real entrar em `weddingConfig.pix.key`, o QR passa a receber um BR Code (`src/lib/pix-brcode.ts`), não o texto cru da chave. O desenho do QR continua ilustrativo até haver um gerador de imagem.
 
-Em produção, a URL pública precisa estar definida para o Open Graph:
+Em produção, a URL pública precisa existir no ambiente da Vercel, em Settings → Environment Variables, para Production:
 
 ```bash
 NEXT_PUBLIC_SITE_URL=https://kaeale.vercel.app
 ```
 
-Se o casamento ganhar um domínio próprio, atualize esse valor. Não commite `.env` nem `.env.local`.
+O arquivo `.env.example` guarda esse valor como referência. Não commite `.env` nem `.env.local`. Sem a variável, o Open Graph publicado continua apontando para `http://localhost:3000/images/og-casamento.jpg`. Com ela, a imagem passa a ser `https://kaeale.vercel.app/images/og-casamento.jpg`. Se o casamento ganhar um domínio próprio, atualize a variável e publique de novo.
 
 ## Sprint atual
 

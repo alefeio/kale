@@ -9,7 +9,10 @@
   --brown: #6e6252;
   --ink: #272a24;
   --white: #ffffff;
-  --hero-base: #4e5440;
+  --hero-base: #5a604c;
+  --hero-photo-opacity: 0.72;
+  --hero-photo-blur: 3px;
+  --hero-photo-scale: 1.04;
   --hero-pos-mobile: 50% center;
   --hero-pos-tablet: center center;
   --hero-pos-desktop: center center;
@@ -77,16 +80,28 @@ textarea {
   height: 100%;
   object-fit: cover;
   object-position: var(--hero-pos-mobile, 50% center);
-  opacity: 0.84;
-  filter: blur(1.5px) saturate(0.86) contrast(0.96) brightness(0.95);
-  transform: scale(1.02);
+  opacity: var(--hero-photo-opacity);
+  filter:
+    blur(var(--hero-photo-blur))
+    saturate(0.76)
+    brightness(0.92)
+    contrast(0.94)
+    sepia(0.06);
+  transform: scale(var(--hero-photo-scale));
 }
 
 .hero-tone {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(rgba(92, 82, 62, 0.08), rgba(55, 61, 45, 0.16));
+  background: linear-gradient(to bottom, rgba(72, 86, 58, 0.32), rgba(110, 98, 82, 0.24));
+}
+
+.hero-warm {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(239, 231, 216, 0.08);
 }
 
 .hero-overlay {
@@ -95,10 +110,10 @@ textarea {
   pointer-events: none;
   background: linear-gradient(
     to top,
-    rgba(30, 32, 25, 0.55) 0%,
-    rgba(30, 32, 25, 0.24) 22%,
-    rgba(30, 32, 25, 0.05) 42%,
-    transparent 62%
+    rgba(39, 42, 36, 0.62) 0%,
+    rgba(47, 57, 40, 0.36) 24%,
+    rgba(47, 57, 40, 0.1) 48%,
+    transparent 68%
   );
 }
 

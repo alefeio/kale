@@ -27,6 +27,7 @@ export function Hero() {
         className="hero-photo"
       />
       <div className="hero-tone" aria-hidden="true" />
+      <div className="hero-warm" aria-hidden="true" />
       <div className="hero-overlay" aria-hidden="true" />
 
       <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center">

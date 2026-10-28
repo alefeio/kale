@@ -1,0 +1,34 @@
+.hero-screen {
+  --hero-height: var(--hero-height-mobile, 100dvh);
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  height: var(--hero-height);
+  min-height: var(--hero-height);
+  background: var(--hero-base);
+  clip-path: inset(0);
+}
+
+.hero-media {
+  position: fixed;
+  z-index: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--hero-height);
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--hero-base);
+}
+
+@media (min-width: 768px) {
+  .hero-screen {
+    --hero-height: var(--hero-height-tablet, 100dvh);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-screen {
+    --hero-height: var(--hero-height-desktop, 100dvh);
+  }
+}

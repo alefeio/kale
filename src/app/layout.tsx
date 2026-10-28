@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Manrope, Parisienne } from "next/font/google";
 import { weddingConfig } from "@/config/wedding";
 import "./globals.css";
+import "./hero-scroll.css";
 
 const manrope = Manrope({
   subsets: ["latin"],

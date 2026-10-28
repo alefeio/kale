@@ -8,14 +8,16 @@ export function Hero({ site }: { site: ResolvedWeddingSettings }) {
   return (
     <section id="topo" aria-label="Abertura" className="hero-screen">
       <link rel="preload" as="image" href={site.hero.src} fetchPriority="high" />
-      {/* The photo host comes from APIMG and is not known at build time. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={site.hero.src} alt={site.hero.alt} className="hero-photo" fetchPriority="high" />
-      <div className="hero-tone" aria-hidden="true" />
-      <div className="hero-warm" aria-hidden="true" />
-      <div className="hero-overlay" aria-hidden="true" />
+      <div className="hero-media">
+        {/* The photo host comes from APIMG and is not known at build time. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={site.hero.src} alt={site.hero.alt} className="hero-photo" fetchPriority="high" />
+        <div className="hero-tone" aria-hidden="true" />
+        <div className="hero-warm" aria-hidden="true" />
+        <div className="hero-overlay" aria-hidden="true" />
+      </div>
 
-      <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center">
+      <div className="hero-copy pointer-events-none absolute inset-0 z-10 flex items-end justify-center">
         <div className="pointer-events-auto flex w-full max-w-5xl flex-col items-center px-5 pb-[max(3rem,env(safe-area-inset-bottom))] text-center text-ivory lg:pb-20">
           <h1 className="rise font-script text-[3.15rem] leading-[0.88] break-words sm:text-[3.5rem] lg:text-[5.5rem]">
             {site.couple.displayName}

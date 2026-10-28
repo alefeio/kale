@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/admin"
 import { invitationShareText, invitationUrl } from "@/lib/invitation-link"
 import { deriveAttendanceStatus } from "@/lib/db/mappers"
 import { prisma } from "@/lib/db/prisma"
+import { getResolvedWeddingSettings } from "@/services/wedding-settings"
 
 const statusLabel = {
   pending: "Pendente",
@@ -27,6 +28,7 @@ export default async function InvitationsPage({
 }) {
   await requireAdmin()
   const { q = "" } = await searchParams
+  const site = await getResolvedWeddingSettings()
   const term = q.trim()
   const invitations = await prisma.invitation.findMany({
     where: term
@@ -95,7 +97,10 @@ export default async function InvitationsPage({
                     </Link>
                     <InvitationCopyButton id={invitation.id} />
                     <InvitationWhatsAppShare
-                      shareText={invitationShareText(url, invitation.code)}
+                      shareText={invitationShareText(url, invitation.code, {
+                        displayName: site.couple.displayName,
+                        dateLabel: site.event.dateLabel,
+                      })}
                       guests={invitation.guests}
                       label="WhatsApp"
                     />

@@ -4,7 +4,11 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   serverExternalPackages: ["pg", "@prisma/adapter-pg"],
   partialPrefetching: true,
-  allowedDevOrigins: ["127.0.0.1"],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "12mb",
+    },
+  },
   turbopack: {
     rules: {
       "*.css": {

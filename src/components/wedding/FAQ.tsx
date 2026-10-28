@@ -1,7 +1,20 @@
 import { weddingConfig } from "@/config/wedding"
+import type { ResolvedWeddingSettings } from "@/lib/site-settings"
 
-export function FAQ() {
+export function FAQ({ site }: { site: ResolvedWeddingSettings }) {
   const { copy, faq } = weddingConfig
+  const items = faq.map((item, index) => {
+    if (index === 0) {
+      return {
+        ...item,
+        answer: `${site.venue.name}, no bairro do ${site.venue.neighborhood}, em ${site.venue.city}.`,
+      }
+    }
+    if (index === 1) {
+      return { ...item, answer: `A cerimônia religiosa terá início às ${site.event.timeLabel}.` }
+    }
+    return item
+  })
 
   return (
     <section className="px-5 pt-8 pb-8" aria-labelledby="duvidas-titulo">
@@ -11,7 +24,7 @@ export function FAQ() {
         </h2>
         <p className="mt-4 text-center text-brown">{copy.faqIntro}</p>
         <div className="mt-12 border-t border-olive/15">
-          {faq.map((item) => (
+          {items.map((item) => (
             <details key={item.question} className="group border-b border-olive/15">
               <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 text-left [&::-webkit-details-marker]:hidden">
                 <h3 className="font-serif text-xl font-medium text-olive-dark sm:text-2xl">{item.question}</h3>

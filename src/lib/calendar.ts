@@ -1,5 +1,19 @@
-import { weddingConfig } from "@/config/wedding"
 import { venueLines } from "@/lib/maps"
+
+export type CalendarDetails = {
+  displayName: string
+  date: string
+  time: string
+  type: string
+  calendarDuration: string
+  venue: {
+    name: string
+    address: string
+    neighborhood: string
+    city: string
+    state: string
+  }
+}
 
 function icsEscape(value: string) {
   return value
@@ -17,15 +31,12 @@ function formatStamp(date: Date) {
   return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`
 }
 
-export function buildWeddingIcs(now = new Date()) {
-  const { ceremony, couple, venue } = weddingConfig
-  const dtStart = ceremony.date.replaceAll("-", "") + "T190000"
+export function buildWeddingIcs(details: CalendarDetails, now = new Date()) {
+  const dtStart = `${details.date.replaceAll("-", "")}T${details.time.replace(":", "")}00`
   const location = icsEscape(
-    [venue.name, venue.address, venue.neighborhood, `${venue.city} - ${venue.state}`].join(", "),
+    [details.venue.name, details.venue.address, details.venue.neighborhood, `${details.venue.city} - ${details.venue.state}`].join(", "),
   )
-  const description = icsEscape(
-    `${ceremony.type}. ${venueLines().join(" ")}`,
-  )
+  const description = icsEscape(`${details.type}. ${venueLines(details.venue).join(" ")}`)
 
   return [
     "BEGIN:VCALENDAR",
@@ -46,8 +57,8 @@ export function buildWeddingIcs(now = new Date()) {
     "UID:casamento-karen-alexandre-2026@convite",
     `DTSTAMP:${formatStamp(now)}`,
     `DTSTART;TZID=America/Belem:${dtStart}`,
-    `DURATION:${ceremony.calendarDuration}`,
-    `SUMMARY:${icsEscape(`${couple.displayName} — Cerimônia de casamento`)}`,
+    `DURATION:${details.calendarDuration}`,
+    `SUMMARY:${icsEscape(`${details.displayName} — Cerimônia de casamento`)}`,
     `LOCATION:${location}`,
     `DESCRIPTION:${description}`,
     "END:VEVENT",
@@ -55,8 +66,8 @@ export function buildWeddingIcs(now = new Date()) {
   ].join("\r\n")
 }
 
-export function downloadWeddingIcs() {
-  const ics = buildWeddingIcs()
+export function downloadWeddingIcs(details: CalendarDetails) {
+  const ics = buildWeddingIcs(details)
   const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" })
   const url = URL.createObjectURL(blob)
   const link = document.createElement("a")

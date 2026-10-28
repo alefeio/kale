@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { weddingConfig } from "@/config/wedding"
+import { useOptionalSite } from "@/components/wedding/site-context"
 
 const UNITS = [
   { key: "days", label: "Dias" },
@@ -39,7 +40,8 @@ function pad(value: number) {
 }
 
 export function Countdown() {
-  const target = new Date(weddingConfig.ceremony.isoDate).getTime()
+  const site = useOptionalSite()
+  const target = new Date(site?.event.isoDate ?? weddingConfig.ceremony.isoDate).getTime()
   const [now, setNow] = useState<number | null>(null)
 
   useEffect(() => {

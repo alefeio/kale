@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Modal } from "@/components/ui/Modal"
 import { weddingConfig } from "@/config/wedding"
+import { useOptionalSite } from "@/components/wedding/site-context"
 import { formatBrazilianMobile } from "@/lib/phone"
 import { ApiError } from "@/services/http"
 import { giftService } from "@/services/gifts"
@@ -19,7 +20,11 @@ export function GiftReservationModal({
   onReserved: (gift: Gift) => void
   onConflict: () => void
 }) {
+  const site = useOptionalSite()
   const { copy } = weddingConfig
+  const reserveText = site
+    ? `Deseja reservar este presente para ${site.couple.bride} e ${site.couple.groom}?`
+    : copy.giftReserveText
   const [pending, setPending] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState("")
@@ -125,7 +130,7 @@ export function GiftReservationModal({
     <Modal
       open={gift !== null}
       title={done ? "Presente reservado." : copy.giftReserveTitle}
-      description={done ? undefined : copy.giftReserveText}
+      description={done ? undefined : reserveText}
       onClose={close}
     >
       {done ? (

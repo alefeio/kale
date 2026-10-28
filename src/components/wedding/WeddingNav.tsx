@@ -4,13 +4,16 @@ import { Menu, X } from "lucide-react"
 import { useCallback, useEffect, useLayoutEffect, useState } from "react"
 import { weddingConfig } from "@/config/wedding"
 import { useRsvpUi } from "@/components/wedding/rsvp-ui"
+import { useOptionalSite } from "@/components/wedding/site-context"
 
 export function WeddingNav() {
   const { openCodeModal } = useRsvpUi()
   const [visible, setVisible] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const shown = visible || menuOpen
-  const { couple, navigation, copy } = weddingConfig
+  const site = useOptionalSite()
+  const monogram = site?.couple.monogram ?? weddingConfig.couple.monogram
+  const { navigation, copy } = weddingConfig
 
   const closeMenu = useCallback(() => setMenuOpen(false), [])
 
@@ -58,7 +61,7 @@ export function WeddingNav() {
       <div className="border-b border-olive/10 bg-ivory/85 pt-[env(safe-area-inset-top)] text-olive-dark backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <a href="#topo" className="font-script text-2xl text-olive-dark">
-            {couple.monogram}
+            {monogram}
           </a>
 
           <nav className="hidden items-center gap-6 lg:flex" aria-label="Seções">
@@ -98,7 +101,7 @@ export function WeddingNav() {
           className="fixed inset-0 z-50 flex flex-col bg-ivory px-6 pt-6 pb-10 text-olive-dark lg:hidden"
         >
           <div className="flex items-center justify-between">
-            <span className="font-script text-3xl">{couple.monogram}</span>
+            <span className="font-script text-3xl">{monogram}</span>
             <button type="button" className="grid h-12 w-12 place-items-center" onClick={closeMenu}>
               <X aria-hidden />
               <span className="sr-only">Fechar menu</span>

@@ -116,6 +116,40 @@ model WeddingSettings {
   pixReceiver String?
   pixCity     String?
 
+  brideName String?
+  groomName String?
+
+  heroImageUrl      String?
+  heroImagePublicId String?
+  heroPositionX     Int?
+  heroPositionY     Int?
+  heroHeightMobile  Int?
+  heroHeightTablet  Int?
+  heroHeightDesktop Int?
+
+  eventAt       DateTime?
+  eventTimezone String?
+
+  faithTitle     String?
+  faithText      String?
+  verseText      String?
+  verseReference String?
+
+  venueName         String?
+  venueAddress      String?
+  venueNeighborhood String?
+  venueCity         String?
+  venueState        String?
+
+  colorIvory       String?
+  colorCream       String?
+  colorPrimary     String?
+  colorPrimaryDark String?
+  colorAccent      String?
+  colorTextMuted   String?
+  colorText        String?
+  colorHeroBase    String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

@@ -13,9 +13,10 @@
   --hero-photo-opacity: 0.72;
   --hero-photo-blur: 3px;
   --hero-photo-scale: 1.04;
-  --hero-pos-mobile: 50% center;
-  --hero-pos-tablet: center center;
-  --hero-pos-desktop: center center;
+  --hero-position: 50% 50%;
+  --hero-height-mobile: 100dvh;
+  --hero-height-tablet: 100dvh;
+  --hero-height-desktop: 100dvh;
   --background: var(--ivory);
   --foreground: var(--ink);
 }
@@ -67,8 +68,8 @@ textarea {
 .hero-screen {
   position: relative;
   width: 100vw;
-  height: 100dvh;
-  min-height: 100dvh;
+  height: var(--hero-height-mobile, 100dvh);
+  min-height: var(--hero-height-mobile, 100dvh);
   overflow: hidden;
   background: var(--hero-base);
 }
@@ -79,7 +80,7 @@ textarea {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: var(--hero-pos-mobile, 50% center);
+  object-position: var(--hero-position, 50% 50%);
   opacity: var(--hero-photo-opacity);
   filter:
     blur(var(--hero-photo-blur))
@@ -254,14 +255,16 @@ textarea {
 }
 
 @media (min-width: 768px) {
-  .hero-photo {
-    object-position: var(--hero-pos-tablet, center center);
+  .hero-screen {
+    height: var(--hero-height-tablet, 100dvh);
+    min-height: var(--hero-height-tablet, 100dvh);
   }
 }
 
 @media (min-width: 1024px) {
-  .hero-photo {
-    object-position: var(--hero-pos-desktop, center center);
+  .hero-screen {
+    height: var(--hero-height-desktop, 100dvh);
+    min-height: var(--hero-height-desktop, 100dvh);
   }
 }
 

@@ -1,21 +1,22 @@
 import { weddingConfig } from "@/config/wedding"
 import { Branch } from "@/components/wedding/Botanical"
 import { publicImageExists } from "@/lib/media"
+import type { ResolvedWeddingSettings } from "@/lib/site-settings"
 import Image from "next/image"
 
 const finalPhoto = "/images/casal-final.jpg"
 
-export function FinalSection() {
-  const { ceremony, copy, couple } = weddingConfig
+export function FinalSection({ site }: { site: ResolvedWeddingSettings }) {
+  const { copy } = weddingConfig
   const hasPhoto = publicImageExists(finalPhoto)
 
   const words = (
     <div className={hasPhoto ? "text-center md:text-left" : "relative mx-auto max-w-xl text-center"}>
-      <p className="text-[0.72rem] tracking-[0.38em] text-brown uppercase">{ceremony.dottedDate}</p>
+      <p className="text-[0.72rem] tracking-[0.38em] text-brown uppercase">{site.event.dottedDate}</p>
       <h2 className="mt-6 font-serif text-3xl leading-snug font-medium text-olive-dark whitespace-pre-line sm:text-5xl">
         {copy.finalBlessing}
       </h2>
-      <p className="mt-10 font-script text-5xl text-olive sm:text-6xl">{couple.displayName}</p>
+      <p className="mt-10 font-script text-5xl break-words text-olive sm:text-6xl">{site.couple.displayName}</p>
     </div>
   )
 
@@ -34,7 +35,7 @@ export function FinalSection() {
         <div className="relative aspect-[4/5] overflow-hidden bg-[var(--hero-base)]">
           <Image
             src={finalPhoto}
-            alt={couple.displayName}
+            alt={site.couple.displayName}
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover object-center opacity-90"

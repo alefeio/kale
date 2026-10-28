@@ -9,9 +9,15 @@ export function invitationUrl(token: string) {
   return `${siteOrigin()}/convite/${encodeURIComponent(token)}`
 }
 
-export function invitationShareText(url: string, code: string) {
-  return `${weddingConfig.couple.displayName}
-${weddingConfig.ceremony.dateLabel}
+export function invitationShareText(
+  url: string,
+  code: string,
+  content?: { displayName?: string; dateLabel?: string },
+) {
+  const displayName = content?.displayName ?? weddingConfig.couple.displayName
+  const dateLabel = content?.dateLabel ?? weddingConfig.ceremony.dateLabel
+  return `${displayName}
+${dateLabel}
 
 Preparamos nosso convite com carinho:
 ${url}

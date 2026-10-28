@@ -5,6 +5,7 @@ import { InvitationEditor } from "@/components/admin/InvitationEditor"
 import { requireAdmin } from "@/lib/admin"
 import { invitationShareText, invitationUrl } from "@/lib/invitation-link"
 import { prisma } from "@/lib/db/prisma"
+import { getResolvedWeddingSettings } from "@/services/wedding-settings"
 
 export default async function InvitationPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin()
@@ -25,6 +26,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ id:
     },
   })
   if (!invitation) notFound()
+  const site = await getResolvedWeddingSettings()
   const url = invitationUrl(invitation.token)
 
   return (
@@ -40,7 +42,10 @@ export default async function InvitationPage({ params }: { params: Promise<{ id:
           share: {
             url,
             code: invitation.code,
-            shareText: invitationShareText(url, invitation.code),
+            shareText: invitationShareText(url, invitation.code, {
+              displayName: site.couple.displayName,
+              dateLabel: site.event.dateLabel,
+            }),
           },
         }}
       />

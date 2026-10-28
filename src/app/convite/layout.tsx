@@ -1,13 +1,25 @@
 import type { Metadata } from "next"
-import { weddingConfig } from "@/config/wedding"
+import { SiteProvider } from "@/components/wedding/site-context"
+import { weddingSiteStyle } from "@/lib/site-settings"
+import { getResolvedWeddingSettings } from "@/services/wedding-settings"
 
-export const metadata: Metadata = {
-  title: {
-    absolute: `Convite — ${weddingConfig.couple.displayName}`,
-  },
-  robots: "noindex,nofollow",
+export const instant = false
+
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getResolvedWeddingSettings()
+  return {
+    title: { absolute: `Convite — ${site.couple.displayName}` },
+    robots: "noindex,nofollow",
+  }
 }
 
-export default function ConviteLayout({ children }: { children: React.ReactNode }) {
-  return <div className="relative min-h-[100dvh] overflow-hidden">{children}</div>
+export default async function ConviteLayout({ children }: { children: React.ReactNode }) {
+  const site = await getResolvedWeddingSettings()
+  return (
+    <SiteProvider site={site}>
+      <div className="wedding-site relative min-h-[100dvh] overflow-hidden" style={weddingSiteStyle(site)}>
+        {children}
+      </div>
+    </SiteProvider>
+  )
 }

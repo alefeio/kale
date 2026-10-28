@@ -5,6 +5,7 @@ import type { ZodError } from "zod"
 import { requireAdmin } from "@/lib/admin"
 import { createUniqueInvitationCode } from "@/lib/invitation-code"
 import { invitationShareText, invitationUrl } from "@/lib/invitation-link"
+import { getResolvedWeddingSettings } from "@/services/wedding-settings"
 import { createInvitationToken } from "@/lib/invitation-token"
 import { prisma } from "@/lib/db/prisma"
 import {
@@ -42,9 +43,17 @@ async function uniqueCode() {
   })
 }
 
-function credentials(token: string, code: string) {
+async function credentials(token: string, code: string) {
   const url = invitationUrl(token)
-  return { code, url, shareText: invitationShareText(url, code) }
+  const site = await getResolvedWeddingSettings()
+  return {
+    code,
+    url,
+    shareText: invitationShareText(url, code, {
+      displayName: site.couple.displayName,
+      dateLabel: site.event.dateLabel,
+    }),
+  }
 }
 
 export async function createInvitation(input: unknown): Promise<AdminActionResult> {
@@ -67,7 +76,7 @@ export async function createInvitation(input: unknown): Promise<AdminActionResul
 
   revalidatePath("/admin")
   revalidatePath("/admin/convites")
-  return { ok: true, message: "Convite criado com sucesso.", ...credentials(created.token, created.code) }
+  return { ok: true, message: "Convite criado com sucesso.", ...(await credentials(created.token, created.code)) }
 }
 
 function guestInputError(error: ZodError) {
@@ -209,7 +218,7 @@ export async function regenerateInvitationCode(id: string): Promise<AdminActionR
 
   revalidatePath("/admin/convites")
   revalidatePath(`/admin/convites/${parsed.data}`)
-  return { ok: true, message: "Código regenerado.", ...credentials(updated.token, updated.code) }
+  return { ok: true, message: "Código regenerado.", ...(await credentials(updated.token, updated.code)) }
 }
 
 export async function regenerateInvitationLink(id: string): Promise<AdminActionResult> {
@@ -224,7 +233,7 @@ export async function regenerateInvitationLink(id: string): Promise<AdminActionR
   })
 
   revalidatePath(`/admin/convites/${parsed.data}`)
-  return { ok: true, message: "Link regenerado.", ...credentials(updated.token, updated.code) }
+  return { ok: true, message: "Link regenerado.", ...(await credentials(updated.token, updated.code)) }
 }
 
 export async function copyInvitation(id: string): Promise<AdminActionResult> {
@@ -237,7 +246,7 @@ export async function copyInvitation(id: string): Promise<AdminActionResult> {
     select: { token: true, code: true },
   })
   if (!invitation) return { ok: false, error: "Convite não encontrado." }
-  return { ok: true, ...credentials(invitation.token, invitation.code) }
+  return { ok: true, ...(await credentials(invitation.token, invitation.code)) }
 }
 
 export async function saveGift(input: unknown, id?: string): Promise<AdminActionResult> {

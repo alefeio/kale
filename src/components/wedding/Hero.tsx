@@ -1,42 +1,27 @@
-import Image from "next/image"
-import { weddingConfig } from "@/config/wedding"
 import { Countdown } from "@/components/wedding/Countdown"
+import { weddingConfig } from "@/config/wedding"
+import type { ResolvedWeddingSettings } from "@/lib/site-settings"
 
-export function Hero() {
-  const { heroImage, couple, ceremony, copy } = weddingConfig
+export function Hero({ site }: { site: ResolvedWeddingSettings }) {
+  const { copy } = weddingConfig
 
   return (
-    <section
-      id="topo"
-      aria-label="Abertura"
-      className="hero-screen"
-      style={{
-        ["--hero-pos-mobile" as string]: heroImage.positionMobile,
-        ["--hero-pos-tablet" as string]: heroImage.positionTablet,
-        ["--hero-pos-desktop" as string]: heroImage.positionDesktop,
-      }}
-    >
-      <link rel="preload" as="image" href={heroImage.src} fetchPriority="high" />
-      <Image
-        src={heroImage.src}
-        alt={heroImage.alt}
-        fill
-        priority
-        unoptimized
-        sizes="100vw"
-        className="hero-photo"
-      />
+    <section id="topo" aria-label="Abertura" className="hero-screen">
+      <link rel="preload" as="image" href={site.hero.src} fetchPriority="high" />
+      {/* The photo host comes from APIMG and is not known at build time. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={site.hero.src} alt={site.hero.alt} className="hero-photo" fetchPriority="high" />
       <div className="hero-tone" aria-hidden="true" />
       <div className="hero-warm" aria-hidden="true" />
       <div className="hero-overlay" aria-hidden="true" />
 
       <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center">
         <div className="pointer-events-auto flex w-full max-w-5xl flex-col items-center px-5 pb-[max(3rem,env(safe-area-inset-bottom))] text-center text-ivory lg:pb-20">
-          <h1 className="rise font-script text-[3.15rem] leading-[0.88] sm:text-[3.5rem] lg:text-[5.5rem] lg:whitespace-nowrap">
-            {couple.displayName}
+          <h1 className="rise font-script text-[3.15rem] leading-[0.88] break-words sm:text-[3.5rem] lg:text-[5.5rem]">
+            {site.couple.displayName}
           </h1>
           <p className="rise rise-2 mt-3 text-[0.68rem] tracking-[0.34em] text-ivory/90 uppercase sm:mt-4 sm:text-sm sm:tracking-[0.42em]">
-            {ceremony.dottedDate}
+            {site.event.dottedDate}
           </p>
           <div className="rise rise-3 mt-5 sm:mt-6">
             <Countdown />

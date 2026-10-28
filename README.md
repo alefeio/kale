@@ -91,15 +91,46 @@ O enquadramento do hero está em `weddingConfig.heroImage`: desktop e tablet em 
 
 Tudo que é dado do casamento fica em `src/config/wedding.ts`: nomes, data, local, versículo, PIX e fotografia.
 
-A chave PIX ainda é o marcador `CHAVE_PIX_A_DEFINIR`. Enquanto estiver assim, o site mostra “Chave PIX a definir”, não copia esse texto e o QR permanece demonstrativo. Quando a chave real entrar em `weddingConfig.pix.key`, o QR passa a receber um BR Code (`src/lib/pix-brcode.ts`), não o texto cru da chave. O desenho do QR continua ilustrativo até haver um gerador de imagem.
+A chave PIX ainda é o marcador `CHAVE_PIX_A_DEFINIR` em `src/config/wedding.ts`. Enquanto estiver assim, o site mostra “Chave PIX a definir”, não copia esse texto e o QR permanece demonstrativo. As variáveis `PIX_KEY`, `PIX_RECEIVER_NAME` e `PIX_RECEIVER_CITY` estão apenas preparadas no `.env.example`. O site ainda não lê esses valores.
 
-Em produção, a URL pública precisa existir no ambiente da Vercel, em Settings → Environment Variables, para Production:
+## Variáveis de ambiente
 
-```bash
-NEXT_PUBLIC_SITE_URL=https://kaeale.vercel.app
+O modelo versionado é `.env.example`. Não commite `.env`, `.env.local` nem `.env.production`.
+
+Cadastre os valores em:
+
+```text
+Vercel
+→ Project
+→ Settings
+→ Environment Variables
 ```
 
-O arquivo `.env.example` guarda esse valor como referência. Não commite `.env` nem `.env.local`. Sem a variável, o Open Graph publicado continua apontando para `http://localhost:3000/images/og-casamento.jpg`. Com ela, a imagem passa a ser `https://kaeale.vercel.app/images/og-casamento.jpg`. Se o casamento ganhar um domínio próprio, atualize a variável e publique de novo.
+Para a produção, configure pelo menos estas quando o banco existir:
+
+```text
+NEXT_PUBLIC_SITE_URL
+DATABASE_URL
+DIRECT_URL
+```
+
+`NEXT_PUBLIC_SITE_URL` deve ser `https://kaeale.vercel.app`. Sem ela, o Open Graph publicado aponta para `http://localhost:3000/images/og-casamento.jpg`. Com ela, a imagem passa a ser `https://kaeale.vercel.app/images/og-casamento.jpg`. Se o casamento ganhar um domínio próprio, atualize a variável e publique de novo.
+
+`DATABASE_URL` é a conexão que a aplicação usa em runtime, pelo Prisma. Na Vercel, use a connection string adequada a serverless. Se o Postgres oferecer uma URL pooled, ela entra aqui.
+
+`DIRECT_URL` é a conexão direta, usada pelo Prisma Migrate e por operações administrativas. Se o provedor separar pooled e direct/non-pooled, a URL direta entra aqui. Não assuma que as duas são iguais.
+
+Na Sprint 2, o datasource do Prisma deve ficar compatível com:
+
+```prisma
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+```
+
+`AUTH_SECRET` e `ADMIN_EMAIL` ficam reservados. A autenticação ainda não existe.
 
 ## Sprint atual
 

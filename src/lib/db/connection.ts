@@ -37,6 +37,19 @@ export function resolveDirectDatabaseUrl() {
   return resolved
 }
 
+const relaxedSslModes = new Set(["require", "prefer", "verify-ca"])
+
+export function normalizePostgresSslMode(rawUrl: string) {
+  let sslmode: string | null
+  try {
+    sslmode = new URL(rawUrl).searchParams.get("sslmode")?.toLowerCase() ?? null
+  } catch {
+    return rawUrl
+  }
+  if (!sslmode || !relaxedSslModes.has(sslmode)) return rawUrl
+  return rawUrl.replace(/([?&]sslmode=)(?:require|prefer|verify-ca)(?=&|#|$)/i, "$1verify-full")
+}
+
 export function resolveRuntimeDatabaseUrl() {
   const pooled = read("DATABASE_URL_POOLED")
   if (pooled) {

@@ -20,9 +20,9 @@ export interface Gift {
 }
 
 export interface GiftReservationData {
-  invitationCode: string
-  donorName: string
-  donorContact: string
+  invitationCode?: string
+  donorName?: string
+  donorContact?: string
   message?: string
 }
 

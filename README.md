@@ -163,7 +163,7 @@ O Better Auth acrescenta `user`, `session`, `account` e `verification`. Não apa
 
 O status do RSVP (`pending`, `confirmed`, `declined`) é calculado pelos convidados. O status do presente (`available`, `reserved`) é calculado pela existência de uma reserva. `giftId` é único: só pode haver uma reserva ativa por presente.
 
-Cada reserva exige um convite ativo. `GiftReservation.invitationId` aponta para `Invitation` com `onDelete: Restrict`. Nome e WhatsApp são obrigatórios. O WhatsApp é guardado só com dígitos. A lista pública de presentes devolve apenas id, nome, categoria, descrição, imagem e status.
+Quem chega pelo link privado recebe um cookie HttpOnly, `ka_invitation_context`, sem token, código, nome ou telefone. Nesse caso a reserva usa o convite reconhecido e não pede código, nome nem WhatsApp. Quem entra direto no site informa nome e WhatsApp; o código do convite é opcional. `invitationId` e `donorContact` podem ficar vazios. O nome continua obrigatório. O WhatsApp, quando informado, é um celular brasileiro de 11 dígitos, guardado só com dígitos. A lista pública de presentes devolve apenas id, nome, categoria, descrição, imagem e status.
 
 ### Migrations com segurança
 

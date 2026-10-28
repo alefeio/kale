@@ -166,7 +166,7 @@ export function ReservationManager({
     donorName: string
     donorContact: string
     invitation: string
-    code: string
+    origin: string
     date: string
     message: string
   }[]
@@ -187,9 +187,9 @@ export function ReservationManager({
             <p className="font-serif text-2xl text-olive-dark">{reservation.gift}</p>
             <dl className="mt-3 grid gap-2 text-sm text-brown sm:grid-cols-2">
               <div><dt>Quem reservou</dt><dd>{reservation.donorName}</dd></div>
-              <div><dt>WhatsApp</dt><dd>{reservation.donorContact}</dd></div>
+              <div><dt>WhatsApp</dt><dd>{reservation.donorContact || "—"}</dd></div>
               <div><dt>Convite</dt><dd>{reservation.invitation}</dd></div>
-              <div><dt>Código</dt><dd>{reservation.code}</dd></div>
+              <div><dt>Origem</dt><dd>{reservation.origin}</dd></div>
               <div><dt>Data</dt><dd>{reservation.date}</dd></div>
               <div className="sm:col-span-2"><dt>Mensagem</dt><dd>{reservation.message || "—"}</dd></div>
             </dl>

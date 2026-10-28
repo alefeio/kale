@@ -135,16 +135,56 @@ export async function removeGuest(id: string): Promise<AdminActionResult> {
 
   const guest = await prisma.guest.findUnique({
     where: { id: parsed.data },
-    select: { attending: true, invitationId: true },
+    select: { invitationId: true, invitation: { select: { active: true } } },
   })
   if (!guest) return { ok: false, error: "Convidado não encontrado." }
-  if (guest.attending !== null) {
-    return { ok: false, error: "Este convidado já respondeu. Edite o nome em vez de excluir." }
+
+  const siblings = await prisma.guest.count({ where: { invitationId: guest.invitationId } })
+  if (guest.invitation.active && siblings <= 1) {
+    return {
+      ok: false,
+      error: "Este é o último convidado deste convite. Adicione outro convidado ou exclua o convite inteiro.",
+    }
   }
 
-  await prisma.guest.delete({ where: { id: parsed.data } })
+  await prisma.$transaction(async (tx) => {
+    await tx.guest.delete({ where: { id: parsed.data } })
+    const remaining = await tx.guest.findMany({
+      where: { invitationId: guest.invitationId },
+      select: { attending: true },
+    })
+    if (remaining.every((item) => item.attending === null)) {
+      await tx.rsvpResponse.deleteMany({ where: { invitationId: guest.invitationId } })
+    }
+  })
+
+  revalidatePath("/admin")
+  revalidatePath("/admin/convites")
   revalidatePath(`/admin/convites/${guest.invitationId}`)
   return { ok: true, message: "Convidado removido." }
+}
+
+export async function deleteInvitation(id: string): Promise<AdminActionResult> {
+  await requireAdmin()
+  const parsed = recordIdSchema.safeParse(id)
+  if (!parsed.success) return { ok: false, error: "Convite não encontrado." }
+
+  const invitation = await prisma.invitation.findUnique({
+    where: { id: parsed.data },
+    select: { giftReservations: { select: { id: true }, take: 1 } },
+  })
+  if (!invitation) return { ok: false, error: "Convite não encontrado." }
+  if (invitation.giftReservations.length > 0) {
+    return {
+      ok: false,
+      error: "Este convite possui reserva de presente vinculada. Libere ou ajuste essas reservas antes de excluir o convite.",
+    }
+  }
+
+  await prisma.invitation.delete({ where: { id: parsed.data } })
+  revalidatePath("/admin")
+  revalidatePath("/admin/convites")
+  return { ok: true, message: "Convite excluído." }
 }
 
 export async function regenerateInvitationCode(id: string): Promise<AdminActionResult> {

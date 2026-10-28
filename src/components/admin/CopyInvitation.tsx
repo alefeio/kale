@@ -25,14 +25,14 @@ export function CopyInvitation({
   return (
     <div className="mt-4 flex flex-col gap-3">
       <p className="text-sm text-brown">Código: {code}</p>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-secondary" onClick={() => copy(url, "Link copiado.")}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <button type="button" className="btn btn-secondary w-full sm:w-auto" onClick={() => copy(url, "Link copiado.")}>
           Copiar link
         </button>
-        <button type="button" className="btn btn-secondary" onClick={() => copy(code, "Código copiado.")}>
+        <button type="button" className="btn btn-secondary w-full sm:w-auto" onClick={() => copy(code, "Código copiado.")}>
           Copiar código
         </button>
-        <button type="button" className="btn btn-secondary" onClick={() => copy(shareText, "Convite copiado.")}>
+        <button type="button" className="btn btn-secondary w-full sm:w-auto" onClick={() => copy(shareText, "Convite copiado.")}>
           Copiar convite
         </button>
       </div>

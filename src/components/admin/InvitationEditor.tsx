@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import {
   addGuest,
+  deleteInvitation,
   regenerateInvitationCode,
   regenerateInvitationLink,
   removeGuest,
@@ -24,13 +25,19 @@ export function InvitationEditor({
     greeting: string
     active: boolean
     guests: GuestItem[]
+    share: { url: string; code: string; shareText: string }
   }
 }) {
   const router = useRouter()
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
-  const [credentials, setCredentials] = useState<AdminActionResult | null>(null)
+  const [guestNotice, setGuestNotice] = useState("")
+  const [guestErrors, setGuestErrors] = useState<Record<string, string>>({})
+  const [shareOverride, setShareOverride] = useState<typeof invitation.share | null>(null)
+  const [securityNotice, setSecurityNotice] = useState("")
+  const [deleteError, setDeleteError] = useState("")
   const [pending, startTransition] = useTransition()
+  const share = shareOverride ?? invitation.share
 
   function apply(response: AdminActionResult) {
     if (!response.ok) {
@@ -38,7 +45,10 @@ export function InvitationEditor({
       return
     }
     setMessage(response.message ?? "Convite atualizado.")
-    if (response.url && response.code && response.shareText) setCredentials(response)
+    if (response.url && response.code && response.shareText) {
+      setShareOverride({ url: response.url, code: response.code, shareText: response.shareText })
+      setSecurityNotice(response.message ?? "Convite atualizado.")
+    }
     router.refresh()
   }
 
@@ -87,6 +97,7 @@ export function InvitationEditor({
 
       <section className="border border-olive/10 bg-white p-4 sm:p-6">
         <h2 className="font-serif text-3xl text-olive-dark">Convidados</h2>
+        {guestNotice ? <p role="status" className="mt-3 text-sm text-olive-dark">{guestNotice}</p> : null}
         <ul className="mt-4 flex flex-col gap-4">
           {invitation.guests.map((guest) => (
             <li key={guest.id} className="flex flex-col gap-2 border-b border-olive/10 pb-4 sm:flex-row sm:items-end">
@@ -109,18 +120,48 @@ export function InvitationEditor({
                   Salvar nome
                 </button>
               </form>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={pending}
-                onClick={() => {
-                  if (!window.confirm("Remover este convidado?")) return
-                  setError("")
-                  startTransition(async () => apply(await removeGuest(guest.id)))
-                }}
-              >
-                Remover
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  className="btn btn-ghost w-full sm:w-auto"
+                  disabled={pending}
+                  onClick={() => {
+                    if (invitation.active && invitation.guests.length <= 1) {
+                      setGuestErrors((current) => ({
+                        ...current,
+                        [guest.id]:
+                          "Este é o último convidado deste convite. Adicione outro convidado ou exclua o convite inteiro.",
+                      }))
+                      return
+                    }
+                    const prompt =
+                      guest.attending === null
+                        ? "Remover este convidado?"
+                        : "Este convidado já respondeu ao RSVP.\n\nAo removê-lo, a resposta individual será perdida.\n\nDeseja continuar?"
+                    if (!window.confirm(prompt)) return
+                    setGuestErrors((current) => ({ ...current, [guest.id]: "" }))
+                    startTransition(async () => {
+                      const response = await removeGuest(guest.id)
+                      if (!response.ok) {
+                        setGuestErrors((current) => ({
+                          ...current,
+                          [guest.id]: response.error ?? "Não foi possível remover.",
+                        }))
+                        return
+                      }
+                      setGuestNotice(response.message ?? "Convidado removido.")
+                      router.refresh()
+                    })
+                  }}
+                >
+                  Remover
+                </button>
+                {guestErrors[guest.id] ? (
+                  <p role="alert" className="max-w-xs text-sm text-olive-dark">
+                    {guestErrors[guest.id]}
+                  </p>
+                ) : null}
+              </div>
             </li>
           ))}
         </ul>
@@ -150,11 +191,19 @@ export function InvitationEditor({
 
       <section className="border border-olive/10 bg-white p-4 sm:p-6">
         <h2 className="font-serif text-3xl text-olive-dark">Código e link</h2>
-        <p className="mt-2 text-sm text-brown">O código ou o link anterior deixará de funcionar.</p>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <CopyInvitation url={share.url} code={share.code} shareText={share.shareText} />
+      </section>
+
+      <section className="border border-olive/10 bg-white p-4 sm:p-6">
+        <h2 className="font-serif text-3xl text-olive-dark">Ações de segurança</h2>
+        <p className="mt-2 text-sm text-brown">
+          Use apenas se precisar invalidar o código ou link enviado anteriormente.
+        </p>
+        {securityNotice ? <p role="status" className="mt-3 text-sm text-olive-dark">{securityNotice}</p> : null}
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn btn-secondary w-full sm:w-auto"
             disabled={pending}
             onClick={() => {
               if (!window.confirm("O código anterior deixará de funcionar.")) return
@@ -166,7 +215,7 @@ export function InvitationEditor({
           </button>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn btn-secondary w-full sm:w-auto"
             disabled={pending}
             onClick={() => {
               if (!window.confirm("O link anterior deixará de funcionar.")) return
@@ -177,9 +226,37 @@ export function InvitationEditor({
             Regenerar link
           </button>
         </div>
-        {credentials?.url && credentials.code && credentials.shareText ? (
-          <CopyInvitation url={credentials.url} code={credentials.code} shareText={credentials.shareText} />
-        ) : null}
+      </section>
+
+      <section className="border border-olive/10 bg-white p-4 sm:p-6">
+        <h2 className="font-serif text-3xl text-olive-dark">Excluir convite</h2>
+        {deleteError ? <p role="alert" className="mt-3 text-sm text-olive-dark">{deleteError}</p> : null}
+        <button
+          type="button"
+          className="btn btn-ghost mt-4 w-full sm:w-auto"
+          disabled={pending}
+          onClick={() => {
+            if (
+              !window.confirm(
+                "Excluir este convite permanentemente?\n\nOs convidados e respostas deste convite também serão removidos.\nEsta ação não pode ser desfeita.",
+              )
+            ) {
+              return
+            }
+            setDeleteError("")
+            startTransition(async () => {
+              const response = await deleteInvitation(invitation.id)
+              if (!response.ok) {
+                setDeleteError(response.error ?? "Não foi possível excluir.")
+                return
+              }
+              router.push("/admin/convites")
+              router.refresh()
+            })
+          }}
+        >
+          Excluir convite
+        </button>
       </section>
     </div>
   )

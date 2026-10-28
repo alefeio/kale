@@ -8,11 +8,11 @@ const invitationCodePattern = /^[A-HJ-NP-Z2-9]{10}$/
 export const invitationTokenSchema = z.string().trim().regex(tokenPattern)
 export const recordIdSchema = z.string().trim().regex(idPattern)
 export const invitationCodeSchema = z.string().trim().toUpperCase().regex(invitationCodePattern)
-export const whatsappSchema = z
+export const brazilianMobileSchema = z
   .string()
   .trim()
   .transform(normalizeWhatsapp)
-  .refine((value) => value.length >= 10 && value.length <= 13)
+  .refine((value) => value.length === 11 && value[2] === "9")
 
 function emptyToUndefined(value: unknown) {
   if (typeof value !== "string") return value
@@ -33,11 +33,17 @@ export const rsvpSchema = z.object({
   message: z.preprocess(emptyToUndefined, z.string().max(1000).optional()),
 })
 
-export const reserveGiftSchema = z.object({
-  invitationCode: invitationCodeSchema,
+const reservationMessageSchema = z.preprocess(emptyToUndefined, z.string().max(500).optional())
+
+export const recognizedReserveSchema = z.object({
+  message: reservationMessageSchema,
+})
+
+export const publicReserveSchema = z.object({
   donorName: z.string().trim().min(1).max(120),
-  donorContact: whatsappSchema,
-  message: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
+  donorContact: brazilianMobileSchema,
+  invitationCode: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  message: reservationMessageSchema,
 })
 
 export const coupleMessageSchema = z.object({

@@ -1,12 +1,18 @@
 import { Prisma } from "@/generated/prisma/client"
 import { connection } from "next/server"
-import { failure, json } from "@/lib/api"
+import { json } from "@/lib/api"
 import { toPublicGiftCategory } from "@/lib/db/mappers"
 import { prisma } from "@/lib/db/prisma"
-import { recordIdSchema, reserveGiftSchema } from "@/lib/validation"
+import { readInvitationContext } from "@/lib/invitation-context"
+import { invitationCodeSchema, publicReserveSchema, recognizedReserveSchema, recordIdSchema } from "@/lib/validation"
 
 const takenMessage =
   "Este presente acabou de ser reservado por outra pessoa. Escolha outra sugestão com carinho. ❤️"
+const invalidCodeMessage = "Não encontramos esse código."
+
+function invalidCode() {
+  return json({ error: invalidCodeMessage, code: "INVALID_INVITATION_CODE" }, 422)
+}
 
 export async function POST(
   request: Request,
@@ -15,23 +21,49 @@ export async function POST(
   await connection()
   const { id } = await context.params
   const parsedId = recordIdSchema.safeParse(id)
-  if (!parsedId.success) return failure(404, "Não encontramos este presente.")
+  if (!parsedId.success) return json({ error: "Não encontramos este presente." }, 404)
 
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return failure(400, "Não foi possível reservar agora.")
+    body = {}
   }
 
-  const parsed = reserveGiftSchema.safeParse(body)
-  if (!parsed.success) {
-    const field = parsed.error.issues[0]?.path[0]
-    if (field === "invitationCode") {
-      return failure(404, "Não encontramos um convite válido com este código.")
+  const recognized = await readInvitationContext()
+  let donorName = ""
+  let donorContact: string | null = null
+  let invitationId: string | null = recognized?.invitationId ?? null
+  let message: string | undefined
+
+  if (recognized) {
+    const parsed = recognizedReserveSchema.safeParse(body)
+    if (!parsed.success) return json({ error: "Não foi possível reservar agora." }, 400)
+    donorName = recognized.displayName
+    donorContact = null
+    invitationId = recognized.invitationId
+    message = parsed.data.message
+  } else {
+    const parsed = publicReserveSchema.safeParse(body)
+    if (!parsed.success) {
+      const field = parsed.error.issues[0]?.path[0]
+      if (field === "donorContact") return json({ error: "Informe um WhatsApp válido." }, 400)
+      return json({ error: "Conte seu nome para reservar este presente." }, 400)
     }
-    if (field === "donorContact") return failure(400, "Informe um WhatsApp válido.")
-    return failure(400, "Conte seu nome para reservar este presente.")
+    donorName = parsed.data.donorName
+    donorContact = parsed.data.donorContact
+    message = parsed.data.message
+    const rawCode = parsed.data.invitationCode
+    if (rawCode) {
+      const code = invitationCodeSchema.safeParse(rawCode)
+      if (!code.success) return invalidCode()
+      const invitation = await prisma.invitation.findUnique({
+        where: { code: code.data },
+        select: { id: true, active: true },
+      })
+      if (!invitation?.active) return invalidCode()
+      invitationId = invitation.id
+    }
   }
 
   try {
@@ -52,19 +84,21 @@ export async function POST(
       if (!gift || !gift.active) return null
       if (gift.reservation) throw new Error("TAKEN")
 
-      const invitation = await tx.invitation.findUnique({
-        where: { code: parsed.data.invitationCode },
-        select: { id: true, active: true },
-      })
-      if (!invitation?.active) throw new Error("INVALID_CODE")
+      if (invitationId) {
+        const invitation = await tx.invitation.findUnique({
+          where: { id: invitationId },
+          select: { active: true },
+        })
+        if (!invitation?.active) invitationId = null
+      }
 
       await tx.giftReservation.create({
         data: {
           giftId: gift.id,
-          invitationId: invitation.id,
-          donorName: parsed.data.donorName,
-          donorContact: parsed.data.donorContact,
-          message: parsed.data.message,
+          invitationId,
+          donorName,
+          donorContact,
+          message,
         },
       })
 
@@ -78,18 +112,15 @@ export async function POST(
       }
     })
 
-    if (!reserved) return failure(404, "Não encontramos este presente.")
+    if (!reserved) return json({ error: "Não encontramos este presente." }, 404)
     return json(reserved)
   } catch (error) {
-    if (error instanceof Error && error.message === "INVALID_CODE") {
-      return failure(404, "Não encontramos um convite válido com este código.")
-    }
     if (error instanceof Error && error.message === "TAKEN") {
-      return failure(409, takenMessage)
+      return json({ error: takenMessage }, 409)
     }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return failure(409, takenMessage)
+      return json({ error: takenMessage }, 409)
     }
-    return failure(500, "Não foi possível reservar agora.")
+    return json({ error: "Não foi possível reservar agora." }, 500)
   }
 }

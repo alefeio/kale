@@ -1,8 +1,8 @@
 import { ReservationManager } from "@/components/admin/AdminManagers"
-
-export const instant = false
 import { requireAdmin } from "@/lib/admin"
 import { prisma } from "@/lib/db/prisma"
+
+export const instant = false
 
 const dateFormat = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
@@ -21,7 +21,7 @@ export default async function ReservationsPage() {
       message: true,
       reservedAt: true,
       gift: { select: { name: true } },
-      invitation: { select: { label: true, code: true } },
+      invitation: { select: { label: true } },
     },
   })
 
@@ -33,9 +33,9 @@ export default async function ReservationsPage() {
           id: reservation.id,
           gift: reservation.gift.name,
           donorName: reservation.donorName,
-          donorContact: reservation.donorContact,
-          invitation: reservation.invitation.label,
-          code: reservation.invitation.code,
+          donorContact: reservation.donorContact ?? "",
+          invitation: reservation.invitation?.label ?? "—",
+          origin: reservation.invitation ? "Convite" : "Site",
           date: dateFormat.format(reservation.reservedAt),
           message: reservation.message ?? "",
         }))}

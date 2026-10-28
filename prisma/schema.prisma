@@ -79,15 +79,15 @@ model Gift {
 model GiftReservation {
   id           String   @id @default(cuid())
   giftId       String   @unique
-  invitationId String
+  invitationId String?
   donorName    String
-  donorContact String
+  donorContact String?
   message      String?
   reservedAt   DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  gift       Gift       @relation(fields: [giftId], references: [id], onDelete: Cascade)
-  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Restrict)
+  gift       Gift        @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  invitation Invitation? @relation(fields: [invitationId], references: [id], onDelete: Restrict)
 
   @@index([invitationId])
 }

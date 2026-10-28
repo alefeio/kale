@@ -23,7 +23,7 @@ export function GiftCard({
   const { copy } = weddingConfig
 
   return (
-    <article className="flex h-full flex-col border border-olive/15 bg-ivory transition-colors duration-200 hover:border-gold/70">
+    <article className="flex h-full flex-col">
       <div className="relative aspect-[4/3] overflow-hidden bg-cream">
         {showPhoto ? (
           <Image
@@ -38,7 +38,7 @@ export function GiftCard({
           <GiftArt category={gift.category} />
         )}
       </div>
-      <div className="flex flex-1 flex-col px-4 py-5">
+      <div className="flex flex-1 flex-col pt-5">
         <p className="text-[0.65rem] tracking-[0.22em] text-brown uppercase">
           {giftCategoryLabels[gift.category]}
         </p>
@@ -53,7 +53,11 @@ export function GiftCard({
               {freshlyReserved ? copy.giftReserved : copy.giftReservedStatus}
             </p>
           ) : (
-            <button type="button" className="btn btn-secondary w-full" onClick={() => onReserve(gift)}>
+            <button
+              type="button"
+              className="min-h-11 self-start text-[0.72rem] tracking-[0.16em] text-olive-dark uppercase underline decoration-gold underline-offset-[6px]"
+              onClick={() => onReserve(gift)}
+            >
               {copy.giftWant}
             </button>
           )}

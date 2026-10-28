@@ -7,8 +7,9 @@ import { useRsvpUi } from "@/components/wedding/rsvp-ui"
 
 export function WeddingNav() {
   const { openCodeModal } = useRsvpUi()
-  const [solid, setSolid] = useState(false)
+  const [visible, setVisible] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const shown = visible || menuOpen
   const { couple, navigation, copy } = weddingConfig
 
   const closeMenu = useCallback(() => setMenuOpen(false), [])
@@ -18,10 +19,18 @@ export function WeddingNav() {
   }, [])
 
   useEffect(() => {
-    const onScroll = () => setSolid(window.scrollY > 24)
-    onScroll()
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
+    const hero = document.getElementById("topo")
+    if (!hero) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setVisible(entry.intersectionRatio < 0.18)
+      },
+      { threshold: [0, 0.1, 0.15, 0.18, 0.25, 0.4, 0.6, 0.8, 1] },
+    )
+
+    observer.observe(hero)
+    return () => observer.disconnect()
   }, [])
 
   useEffect(() => {
@@ -38,18 +47,17 @@ export function WeddingNav() {
     }
   }, [menuOpen, closeMenu])
 
-  const bar = solid
-    ? "border-b border-olive/10 bg-ivory/85 text-olive-dark backdrop-blur-sm"
-    : "bg-transparent text-ivory"
-
   return (
-    <header className="fixed inset-x-0 top-0 z-40">
-      <div className={`pt-[env(safe-area-inset-top)] transition-colors duration-300 ${bar}`}>
+    <header
+      className={`fixed inset-x-0 top-0 z-40 transition-opacity duration-500 ${
+        shown ? "opacity-100" : "pointer-events-none opacity-0"
+      }`}
+      inert={shown ? undefined : true}
+      aria-hidden={shown ? undefined : true}
+    >
+      <div className="border-b border-olive/10 bg-ivory/85 pt-[env(safe-area-inset-top)] text-olive-dark backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <a
-            href="#topo"
-            className={`font-script text-2xl ${solid ? "text-olive-dark" : "text-ivory drop-shadow-[0_1px_8px_rgba(20,16,10,0.45)]"}`}
-          >
+          <a href="#topo" className="font-script text-2xl text-olive-dark">
             {couple.monogram}
           </a>
 
@@ -58,11 +66,7 @@ export function WeddingNav() {
               <a
                 key={item.href}
                 href={item.href}
-                className={`text-[0.68rem] tracking-[0.16em] uppercase ${
-                  solid
-                    ? "text-brown hover:text-olive-dark"
-                    : "text-ivory drop-shadow-[0_1px_6px_rgba(20,16,10,0.7)] hover:text-ivory"
-                }`}
+                className="text-[0.68rem] tracking-[0.16em] text-brown uppercase hover:text-olive-dark"
               >
                 {item.label}
               </a>
@@ -70,16 +74,12 @@ export function WeddingNav() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={openCodeModal}
-              className="btn btn-primary nav-desktop-only min-h-10 px-5"
-            >
+            <button type="button" onClick={openCodeModal} className="btn btn-primary nav-desktop-only min-h-10 px-5">
               Confirmar presença
             </button>
             <button
               type="button"
-              className={`grid h-11 w-11 place-items-center lg:hidden ${solid ? "text-olive-dark" : "text-ivory"}`}
+              className="grid h-11 w-11 place-items-center text-olive-dark lg:hidden"
               aria-expanded={menuOpen}
               aria-controls="menu-mobile"
               onClick={() => setMenuOpen((open) => !open)}
@@ -106,12 +106,7 @@ export function WeddingNav() {
           </div>
           <div className="mt-12 flex flex-col gap-6">
             {navigation.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                onClick={closeMenu}
-                className="font-serif text-4xl"
-              >
+              <a key={item.href} href={item.href} onClick={closeMenu} className="font-serif text-4xl">
                 {item.label}
               </a>
             ))}

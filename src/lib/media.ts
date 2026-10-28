@@ -1,6 +1,11 @@
 import fs from "node:fs"
 import path from "node:path"
 
+export function publicImageExists(publicPath: string) {
+  const relative = publicPath.replace(/^\//, "")
+  return fs.existsSync(path.join(process.cwd(), "public", relative))
+}
+
 export function existingGiftImages() {
   const directory = path.join(process.cwd(), "public", "images", "gifts")
   if (!fs.existsSync(directory)) return []

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { weddingConfig } from "@/config/wedding"
 import { PixQr } from "@/components/wedding/PixQr"
+import { buildPixBrCode } from "@/lib/pix-brcode"
 
 function copyWithSelection(value: string) {
   const field = document.createElement("textarea")
@@ -58,7 +59,7 @@ export function PixSection() {
         </h2>
         <p className="mt-5 text-base leading-8 whitespace-pre-line text-ivory/85">{copy.pixText}</p>
         <div className="mt-8">
-          <PixQr payload={placeholder ? "demonstrativo" : pix.key} />
+          <PixQr payload={placeholder ? "demonstrativo" : buildPixBrCode(pix.key, pix.receiver, weddingConfig.venue.city)} />
           <p className="mt-3 text-[0.65rem] tracking-[0.22em] text-ivory/70 uppercase">
             QR Code demonstrativo
           </p>

@@ -5,7 +5,7 @@ export function FaithSection() {
   const { copy, verse } = weddingConfig
 
   return (
-    <section id="abertura" className="section-anchor relative overflow-hidden px-5 py-28 sm:py-36 md:py-44">
+    <section id="abertura" className="section-anchor relative overflow-hidden px-5 py-20 sm:py-32 md:py-44">
       <BotanicalFrame />
       <div className="relative mx-auto max-w-xl text-center">
         <p aria-hidden className="text-gold">

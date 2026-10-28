@@ -71,6 +71,7 @@ export const weddingConfig = {
     rsvpTitle: "Você estará conosco?",
     rsvpText:
       "Será uma alegria dividir este momento\ncom pessoas especiais da nossa história.",
+    rsvpCodeHint: "Tenha em mãos o código recebido no seu convite.",
     rsvpButton: "Confirmar minha presença",
     rsvpModalTitle: "Digite o código recebido no seu convite",
     rsvpCodeLabel: "Código do convite",
@@ -95,6 +96,8 @@ export const weddingConfig = {
     messageSuccessTitle: "Mensagem recebida ❤️",
     messageSuccessText: "Vamos guardar suas palavras com carinho.",
     finalBlessing: "Que o nosso amor seja sempre conduzido\npela graça de Deus.",
+    faqTitle: "Antes do grande dia",
+    faqIntro: "Algumas informações que podem ajudar.",
     footerNote: "Feito com amor para o nosso grande dia.",
     invitationGreeting: "Será uma alegria celebrar este momento com vocês.",
     invitationQuestion: "Quem estará conosco?",

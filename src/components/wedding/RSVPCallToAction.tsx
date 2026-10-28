@@ -16,7 +16,8 @@ export function RSVPCallToAction() {
         <p className="mt-6 text-base leading-8 whitespace-pre-line text-brown sm:text-lg">
           {copy.rsvpText}
         </p>
-        <button type="button" className="btn btn-primary mt-10" onClick={openCodeModal}>
+        <p className="mt-8 text-[0.72rem] tracking-[0.14em] text-brown uppercase">{copy.rsvpCodeHint}</p>
+        <button type="button" className="btn btn-primary mt-5" onClick={openCodeModal}>
           {copy.rsvpButton}
         </button>
       </div>

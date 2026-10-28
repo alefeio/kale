@@ -46,7 +46,7 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
           </p>
         </div>
 
-        <div className="mt-12 flex flex-wrap justify-center gap-x-4 gap-y-3" role="group" aria-label="Categorias">
+        <div className="gift-filters mt-12" role="group" aria-label="Categorias">
           {filters.map((item) => {
             const selectedFilter = filter === item
             const label = item === "todos" ? "Todos" : giftCategoryLabels[item as GiftCategory]
@@ -56,7 +56,7 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
                 type="button"
                 aria-pressed={selectedFilter}
                 onClick={() => setFilter(item)}
-                className={`min-h-11 px-1 text-[0.68rem] tracking-[0.18em] uppercase ${
+                className={`min-h-11 shrink-0 px-1 text-[0.68rem] tracking-[0.18em] uppercase ${
                   selectedFilter ? "border-b border-olive text-olive-dark" : "text-brown"
                 }`}
               >
@@ -69,9 +69,9 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
         {gifts === null ? (
           <>
             <p className="sr-only">Carregando presentes</p>
-            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
+            <div className="mt-14 grid gap-x-10 gap-y-16 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
             {Array.from({ length: 6 }, (_, index) => (
-              <div key={index} className="border border-olive/10">
+              <div key={index}>
                 <div className="aspect-[4/3] bg-cream" />
                 <div className="space-y-3 px-4 py-5">
                   <div className="h-3 w-16 bg-cream" />
@@ -83,7 +83,7 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
           </div>
           </>
         ) : (
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-14 grid gap-x-10 gap-y-16 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((gift) => (
               <GiftCard
                 key={gift.id}

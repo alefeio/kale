@@ -85,7 +85,7 @@ export function Countdown() {
       <div className="grid grid-cols-4 gap-3 sm:gap-6" role="timer" aria-label={spoken}>
         {UNITS.map((unit) => (
           <div key={unit.key} className="flex flex-col items-center">
-            <span className="font-serif text-[1.45rem] leading-none text-ivory tabular-nums sm:text-[1.85rem]">
+            <span className="font-serif text-[1.7rem] leading-none text-ivory tabular-nums sm:text-[2.15rem]">
               {pad(remaining[unit.key])}
             </span>
             <span className="mt-1 text-[0.52rem] tracking-[0.16em] text-ivory/75 uppercase sm:text-[0.58rem] sm:tracking-[0.18em]">

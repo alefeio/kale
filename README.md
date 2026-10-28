@@ -81,7 +81,8 @@ Reservas de presentes, respostas de presença e mensagens aos noivos ficam no `l
 | Arquivo | Estado |
 | --- | --- |
 | `public/images/casal-hero.jpg` | Fotografia do casal usada no hero |
-| `public/images/og-casamento.jpg` | Recorte da mesma foto para Open Graph |
+| `public/images/casal-final.jpg` | Segunda foto, no encerramento. Enquanto não existir, a seção usa o fechamento tipográfico |
+| `public/images/og-casamento.jpg` | 1200×630. Recorte central da foto do casal; pode ser substituído por um cartão desenhado |
 | `public/images/gifts/` | Sem fotos dos presentes; os cards usam um desenho próprio |
 
 O enquadramento do hero está em `weddingConfig.heroImage`: desktop e tablet em `center center`, celular em `50% center`.
@@ -90,26 +91,27 @@ O enquadramento do hero está em `weddingConfig.heroImage`: desktop e tablet em 
 
 Tudo que é dado do casamento fica em `src/config/wedding.ts`: nomes, data, local, versículo, PIX e fotografia.
 
-A chave PIX ainda é o marcador `CHAVE_PIX_A_DEFINIR`. Enquanto estiver assim, o site mostra “Chave PIX a definir” e não copia esse texto.
+A chave PIX ainda é o marcador `CHAVE_PIX_A_DEFINIR`. Enquanto estiver assim, o site mostra “Chave PIX a definir”, não copia esse texto e o QR permanece demonstrativo. Quando a chave real entrar em `weddingConfig.pix.key`, o QR passa a receber um BR Code (`src/lib/pix-brcode.ts`), não o texto cru da chave. O desenho do QR continua ilustrativo até haver um gerador de imagem.
 
-Para o Open Graph em produção, defina a URL pública:
+Em produção, a URL pública precisa estar definida para o Open Graph:
 
 ```bash
-NEXT_PUBLIC_SITE_URL=https://seu-dominio
+NEXT_PUBLIC_SITE_URL=https://kaeale.vercel.app
 ```
 
-Não commite `.env` nem `.env.local`.
+Se o casamento ganhar um domínio próprio, atualize esse valor. Não commite `.env` nem `.env.local`.
 
 ## Sprint atual
 
-Sprint 1: identidade, homepage, hero, contagem, evento, RSVP mockado, presentes, PIX demonstrativo, mensagem, FAQ e responsividade.
+Sprint 1.1: refinamento visual do hero, da navegação, dos presentes e do encerramento. Ainda sem banco de dados.
 
 ## Pendências
 
-- Chave PIX real e QR Code correspondente
+- Chave PIX real. O payload BR Code já está preparado; a imagem do QR segue demonstrativa
 - Fotografias individuais dos presentes
-- Cartão de Open Graph desenhado, se quiserem substituir o recorte da foto
-- `NEXT_PUBLIC_SITE_URL` no ambiente de produção
+- `public/images/casal-final.jpg`, se quiserem fechar o site com outra foto do casal
+- Cartão de Open Graph desenhado, se quiserem substituir o recorte de 1200×630
+- Confirmar `NEXT_PUBLIC_SITE_URL=https://kaeale.vercel.app` no painel da Vercel e trocar se houver domínio próprio
 
 ## Próximas etapas
 

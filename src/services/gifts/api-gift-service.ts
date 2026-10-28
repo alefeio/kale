@@ -11,6 +11,7 @@ export const apiGiftService: GiftService = {
     return apiFetch<Gift>(`/api/gifts/${encodeURIComponent(id)}/reserve`, {
       method: "POST",
       body: JSON.stringify({
+        invitationCode: data.invitationCode,
         donorName: data.donorName,
         donorContact: data.donorContact,
         message: data.message,

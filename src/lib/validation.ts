@@ -1,10 +1,18 @@
 import { z } from "zod"
+import { normalizeWhatsapp } from "@/lib/phone"
 
 const tokenPattern = /^[A-Za-z0-9_-]{1,200}$/
 const idPattern = /^[A-Za-z0-9_-]{1,40}$/
+const invitationCodePattern = /^[A-HJ-NP-Z2-9]{10}$/
 
 export const invitationTokenSchema = z.string().trim().regex(tokenPattern)
 export const recordIdSchema = z.string().trim().regex(idPattern)
+export const invitationCodeSchema = z.string().trim().toUpperCase().regex(invitationCodePattern)
+export const whatsappSchema = z
+  .string()
+  .trim()
+  .transform(normalizeWhatsapp)
+  .refine((value) => value.length >= 10 && value.length <= 13)
 
 function emptyToUndefined(value: unknown) {
   if (typeof value !== "string") return value
@@ -26,12 +34,46 @@ export const rsvpSchema = z.object({
 })
 
 export const reserveGiftSchema = z.object({
+  invitationCode: invitationCodeSchema,
   donorName: z.string().trim().min(1).max(120),
-  donorContact: z.preprocess(emptyToUndefined, z.string().max(120).optional()),
+  donorContact: whatsappSchema,
   message: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
 })
 
 export const coupleMessageSchema = z.object({
   name: z.string().trim().min(1).max(120),
   message: z.string().trim().min(1).max(2000),
+})
+
+export const createInvitationSchema = z.object({
+  label: z.string().trim().min(1).max(120),
+  greeting: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
+  guests: z.array(z.string().trim().min(1).max(120)).min(1).max(30),
+})
+
+export const updateInvitationSchema = z.object({
+  id: recordIdSchema,
+  label: z.string().trim().min(1).max(120),
+  greeting: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
+  active: z.boolean(),
+})
+
+export const guestNameSchema = z.object({
+  id: recordIdSchema,
+  name: z.string().trim().min(1).max(120),
+})
+
+export const addGuestSchema = z.object({
+  invitationId: recordIdSchema,
+  name: z.string().trim().min(1).max(120),
+})
+
+export const giftCategorySchema = z.enum(["KITCHEN", "TABLE", "HOME", "APPLIANCES", "BATH"])
+
+export const giftInputSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  category: giftCategorySchema,
+  sortOrder: z.number().int().min(0).max(9999),
+  active: z.boolean(),
+  description: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
 })

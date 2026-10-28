@@ -1,4 +1,5 @@
 import { config as loadEnv } from "dotenv"
+import { generateInvitationCode } from "../src/lib/invitation-code"
 
 loadEnv({ path: ".env.local", quiet: true })
 loadEnv({ path: ".env", quiet: true })
@@ -91,9 +92,15 @@ async function seedDemoInvitations(prisma: Awaited<typeof import("../src/lib/db/
     })
     if (existing) continue
 
+    let code = generateInvitationCode()
+    while (await prisma.invitation.findUnique({ where: { code }, select: { id: true } })) {
+      code = generateInvitationCode()
+    }
+
     await prisma.invitation.create({
       data: {
         token: invitation.token,
+        code,
         label: invitation.label,
         greeting: invitation.greeting,
         guests: {

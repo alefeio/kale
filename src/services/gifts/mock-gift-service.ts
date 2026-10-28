@@ -24,7 +24,9 @@ export const mockGiftService: GiftService = {
   async reserveGift(id, data) {
     const gift = giftSeeds.find((item) => item.id === id)
     if (!gift) throw new Error("Presente não encontrado")
-    if (!data.donorName.trim()) throw new Error("Conte seu nome para reservar este presente.")
+    if (!data.donorName.trim() || !data.invitationCode.trim() || !data.donorContact.trim()) {
+      throw new Error("Informe o código, o nome e o WhatsApp.")
+    }
 
     if (gift.status !== "reserved") {
       const stored = readJson<GiftStore>(STORAGE_KEY, {})

@@ -25,7 +25,14 @@ export async function POST(
   }
 
   const parsed = reserveGiftSchema.safeParse(body)
-  if (!parsed.success) return failure(400, "Conte seu nome para reservar este presente.")
+  if (!parsed.success) {
+    const field = parsed.error.issues[0]?.path[0]
+    if (field === "invitationCode") {
+      return failure(404, "Não encontramos um convite válido com este código.")
+    }
+    if (field === "donorContact") return failure(400, "Informe um WhatsApp válido.")
+    return failure(400, "Conte seu nome para reservar este presente.")
+  }
 
   try {
     const reserved = await prisma.$transaction(async (tx) => {
@@ -45,9 +52,16 @@ export async function POST(
       if (!gift || !gift.active) return null
       if (gift.reservation) throw new Error("TAKEN")
 
+      const invitation = await tx.invitation.findUnique({
+        where: { code: parsed.data.invitationCode },
+        select: { id: true, active: true },
+      })
+      if (!invitation?.active) throw new Error("INVALID_CODE")
+
       await tx.giftReservation.create({
         data: {
           giftId: gift.id,
+          invitationId: invitation.id,
           donorName: parsed.data.donorName,
           donorContact: parsed.data.donorContact,
           message: parsed.data.message,
@@ -67,6 +81,9 @@ export async function POST(
     if (!reserved) return failure(404, "Não encontramos este presente.")
     return json(reserved)
   } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_CODE") {
+      return failure(404, "Não encontramos um convite válido com este código.")
+    }
     if (error instanceof Error && error.message === "TAKEN") {
       return failure(409, takenMessage)
     }

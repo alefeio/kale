@@ -76,7 +76,7 @@ export const weddingConfig = {
     rsvpModalTitle: "Digite o código recebido no seu convite",
     rsvpCodeLabel: "Código do convite",
     rsvpContinue: "Continuar",
-    rsvpCodeError: "Não encontramos um convite com este código.",
+    rsvpCodeError: "Não encontramos um convite válido com este código.",
     giftsTitle: "Chá de Panela",
     giftsText:
       "Mais importante que qualquer presente será ter\nvocês fazendo parte deste novo capítulo conosco.\n\nMas, para quem desejar nos presentear,\npreparamos algumas sugestões com carinho.",

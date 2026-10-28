@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { weddingConfig } from "@/config/wedding"
-import { rsvpService } from "@/services/rsvp"
 import { Modal } from "@/components/ui/Modal"
 
 export function RsvpCodeModal({
@@ -21,24 +20,35 @@ export function RsvpCodeModal({
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const token = code.trim()
-    if (!token) {
+    const entered = code.trim()
+    if (!entered) {
       setError(copy.rsvpCodeError)
       return
     }
 
     setPending(true)
     setError("")
-    const invitation = await rsvpService.getInvitationByToken(token)
+    const response = await fetch("/api/invitations/access", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: code.trim() }),
+      cache: "no-store",
+    })
     setPending(false)
 
-    if (!invitation) {
+    if (!response.ok) {
+      setError(copy.rsvpCodeError)
+      return
+    }
+
+    const data = (await response.json()) as { token?: string }
+    if (!data.token) {
       setError(copy.rsvpCodeError)
       return
     }
 
     onClose()
-    router.push(`/convite/${encodeURIComponent(invitation.token)}`)
+    router.push(`/convite/${encodeURIComponent(data.token)}`)
   }
 
   return (

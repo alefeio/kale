@@ -1,6 +1,10 @@
+import { config as loadEnv } from "dotenv"
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "../../generated/prisma/client"
 import { resolveRuntimeDatabaseUrl } from "./connection"
+
+loadEnv({ path: ".env.local", quiet: true })
+loadEnv({ path: ".env", quiet: true })
 
 const runtimeDatabaseUrl = resolveRuntimeDatabaseUrl().url
 

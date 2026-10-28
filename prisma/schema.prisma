@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -16,19 +17,22 @@ enum GiftCategory {
 }
 
 model Invitation {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  label     String
-  greeting  String?
-  active    Boolean  @default(true)
+  id       String  @id @default(cuid())
+  token    String  @unique
+  code     String  @unique
+  label    String
+  greeting String?
+  active   Boolean @default(true)
 
-  guests   Guest[]
-  response RsvpResponse?
+  guests           Guest[]
+  response         RsvpResponse?
+  giftReservations GiftReservation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([token])
+  @@index([code])
 }
 
 model Guest {
@@ -75,13 +79,17 @@ model Gift {
 model GiftReservation {
   id           String   @id @default(cuid())
   giftId       String   @unique
+  invitationId String
   donorName    String
-  donorContact String?
+  donorContact String
   message      String?
   reservedAt   DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  gift Gift @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  gift       Gift       @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Restrict)
+
+  @@index([invitationId])
 }
 
 model Message {
@@ -89,4 +97,72 @@ model Message {
   name      String
   message   String
   createdAt DateTime @default(now())
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          String?
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  sessions      Session[]
+  accounts      Account[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
 }

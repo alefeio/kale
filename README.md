@@ -150,7 +150,7 @@ Não assuma que a URL direta e a URL pooled são iguais. A conexão direta serve
 
 Production e Preview não devem compartilhar o mesmo banco quando migrations passarem a nascer em branches. Esta sprint não altera a infraestrutura da Vercel.
 
-Models:
+Models do casamento:
 
 - `Invitation`
 - `Guest`
@@ -159,15 +159,46 @@ Models:
 - `GiftReservation`
 - `Message`
 
+O Better Auth acrescenta `user`, `session`, `account` e `verification`. Não apague os models do casamento ao regenerar o schema de autenticação.
+
 O status do RSVP (`pending`, `confirmed`, `declined`) é calculado pelos convidados. O status do presente (`available`, `reserved`) é calculado pela existência de uma reserva. `giftId` é único: só pode haver uma reserva ativa por presente.
+
+Cada reserva exige um convite ativo. `GiftReservation.invitationId` aponta para `Invitation` com `onDelete: Restrict`. Nome e WhatsApp são obrigatórios. O WhatsApp é guardado só com dígitos. A lista pública de presentes devolve apenas id, nome, categoria, descrição, imagem e status.
+
+### Migrations com segurança
+
+O `.env.local` aponta para o banco real. Não rode `prisma migrate dev`, `prisma migrate reset` nem `prisma db push --force-reset`.
+
+Antes de alterar o schema, confira:
+
+```bash
+npx prisma migrate status
+npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+```
+
+Se houver drift, pare. Não corrija sozinho.
+
+Para uma migration nova, gere o SQL com `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`, revise o arquivo e só então aplique com a conexão direta:
+
+```bash
+npm run db:migrate:deploy
+npm run db:generate
+```
+
+A conexão direta segue `DIRECT_URL`, depois `DATABASE_URL`, `POSTGRES_URL` e `PRISMA_DATABASE_URL`. Não use `DATABASE_URL_POOLED` para migration.
 
 ## Privacidade do RSVP
 
-O convite só é acessado por `/convite/[token]`. A página envia `noindex,nofollow`. O token não entra em sitemap, Open Graph, analytics nem em mensagens de erro.
+O convite público usa dois valores diferentes:
 
-Não há busca por nome e não há listagem pública de convidados, reservas ou mensagens. A API de um convite devolve somente aquele convite. Nome, contato e mensagem de quem reservou um presente ficam no banco e não voltam na lista pública.
+- `token` é o segredo do link `/convite/[token]`. Ele é gerado com `crypto.randomBytes(24).toString("base64url")` e não aparece na lista do painel.
+- `code` é o código amigável de 10 caracteres, em maiúsculas, sem `0`, `O`, `1` e `I`. O convidado digita esse código no RSVP e na reserva. O código nunca substitui o token da URL.
 
-Convites reais futuros devem usar token imprevisível, por `src/lib/invitation-token.ts`. Os três códigos `demo-*` existem apenas para homologação.
+A página do convite envia `noindex,nofollow`. O token não entra em sitemap, Open Graph, analytics nem em mensagens de erro. O painel em `/admin` também envia `noindex,nofollow`.
+
+Não há busca pública por nome. A busca por nome, identificação ou código existe só no painel. Nome, WhatsApp, mensagem e convite de quem reservou ficam visíveis apenas em `/admin/reservas`.
+
+Os convites `demo-individual`, `demo-casal` e `demo-familia` não são recriados no banco de produção. O seed só os cria se `SEED_DEMO_DATA` for exatamente `true`.
 
 ## Assets
 
@@ -206,6 +237,9 @@ Para a produção, configure pelo menos:
 ```text
 NEXT_PUBLIC_SITE_URL=https://kaeale.vercel.app
 DATABASE_URL_POOLED
+BETTER_AUTH_SECRET=<secret forte, com pelo menos 32 caracteres>
+BETTER_AUTH_URL=https://kaeale.vercel.app
+ADMIN_EMAIL=<email real do administrador>
 ```
 
 E uma conexão direta para migrations, se ela ainda não tiver sido criada pela integração:
@@ -218,31 +252,45 @@ DIRECT_URL
 
 `DATABASE_URL`, `POSTGRES_URL` e `PRISMA_DATABASE_URL` podem ser preenchidas pela integração Prisma Postgres/Vercel. Não as substitua no painel.
 
-`AUTH_SECRET` e `ADMIN_EMAIL` ficam reservados. A autenticação ainda não existe.
+`BETTER_AUTH_SECRET` precisa de alta entropia e não deve ser impresso em logs, README ou commits. No ambiente local, `BETTER_AUTH_URL` fica `http://localhost:3000`. `ADMIN_EMAIL` é só o endereço da primeira conta administrativa. A senha não entra em arquivo de ambiente.
+
+## Administração
+
+O painel usa Better Auth com o adapter Prisma, o plugin `admin` e e-mail com senha. O cadastro público está desligado (`disableSignUp: true`). A senha mínima tem 12 caracteres. Não há “esqueci minha senha” nesta sprint.
+
+Rotas:
+
+- `/admin/login`
+- `/admin`
+- `/admin/convites`
+- `/admin/presentes`
+- `/admin/reservas`
+- `/admin/mensagens`
+
+Cada página e cada mutation conferem a sessão no servidor e exigem `role` contendo `admin`. O `proxy.ts` só antecipa o redirecionamento de quem não tem cookie.
+
+### Primeiro administrador
+
+Com `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` e `ADMIN_EMAIL` configurados, e depois da migration aplicada:
+
+```bash
+npx auth@latest create-admin --email <ADMIN_EMAIL> --name "Alexandre" --role admin
+```
+
+A CLI pede a senha de forma interativa. Não passe a senha como argumento e não a grave no repositório. Se `ADMIN_EMAIL` não estiver definido, não invente um endereço.
 
 ## Sprint atual
 
-O banco local está preparado para dados reais. A lista do chá de panela tem 18 presentes, sem fotos e sem reservas. Convites de demonstração não fazem parte desse banco.
+O painel administrativo cobre convites, convidados, RSVP, presentes, reservas e mensagens. A lista do chá de panela continua com os 18 presentes reais. Convites de demonstração não fazem parte do banco de produção.
 
 ## Pendências
 
+- Confirmar na Vercel `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=https://kaeale.vercel.app`, `DATABASE_URL_POOLED` e a conexão direta
+- Criar a conta administrativa quando `ADMIN_EMAIL` estiver definido
 - Separar os bancos de Production e Preview quando as migrations passarem a ser desenvolvidas em branches
 - Chave PIX real. O payload BR Code já está preparado; a imagem do QR segue demonstrativa
 - Fotografias dos 18 presentes. Enquanto não existirem, os cards usam o desenho já existente
 - `public/images/casal-final.jpg`, se quiserem fechar o site com outra foto do casal
 - Cartão de Open Graph desenhado, se quiserem substituir o recorte de 1200×630
 - Confirmar `NEXT_PUBLIC_SITE_URL=https://kaeale.vercel.app` no painel da Vercel e trocar se houver domínio próprio
-- Convites reais, com tokens imprevisíveis
-
-## Próximo módulo — Admin
-
-- autenticação
-- convidados
-- convites
-- RSVP
-- presentes
-- reservas
-- mensagens
-
-Na Sprint 3, a reserva de presente continua exigindo `donorName`. O contato ou WhatsApp passará a ser obrigatório, e uma reserva poderá ser associada a um convite válido. Essa associação ainda não existe.
 

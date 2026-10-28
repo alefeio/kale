@@ -22,6 +22,7 @@ export function GiftReservationModal({
   const [pending, setPending] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState("")
+  const [invitationCode, setInvitationCode] = useState("")
   const [donorName, setDonorName] = useState("")
   const [donorContact, setDonorContact] = useState("")
   const [donorMessage, setDonorMessage] = useState("")
@@ -32,6 +33,7 @@ export function GiftReservationModal({
     setDone(false)
     setError("")
     setPending(false)
+    setInvitationCode("")
     setDonorName("")
     setDonorContact("")
     setDonorMessage("")
@@ -46,8 +48,16 @@ export function GiftReservationModal({
 
   async function reserve() {
     if (!gift) return
+    if (!invitationCode.trim()) {
+      setError("Informe o código do convite.")
+      return
+    }
     if (!donorName.trim()) {
       setError("Conte seu nome.")
+      return
+    }
+    if (!donorContact.trim()) {
+      setError("Informe o WhatsApp.")
       return
     }
     setPending(true)
@@ -56,6 +66,7 @@ export function GiftReservationModal({
       const updated = await giftService.reserveGift(gift.id, {
         donorName,
         donorContact,
+        invitationCode,
         message: donorMessage,
       })
       onReserved(updated)
@@ -87,6 +98,22 @@ export function GiftReservationModal({
         <div className="flex flex-col gap-3">
           {gift ? <p className="font-serif text-2xl text-olive">{gift.name}</p> : null}
           <div>
+            <label htmlFor="reserva-codigo" className="mb-2 block text-sm text-brown">
+              Código do convite *
+            </label>
+            <input
+              id="reserva-codigo"
+              name="codigo"
+              value={invitationCode}
+              onChange={(event) => setInvitationCode(event.target.value.toUpperCase())}
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              required
+              className="field uppercase"
+            />
+          </div>
+          <div>
             <label htmlFor="reserva-nome" className="mb-2 block text-sm text-brown">
               Seu nome *
             </label>
@@ -102,7 +129,7 @@ export function GiftReservationModal({
           </div>
           <div>
             <label htmlFor="reserva-contato" className="mb-2 block text-sm text-brown">
-              Telefone ou WhatsApp
+              Telefone ou WhatsApp *
             </label>
             <input
               id="reserva-contato"
@@ -110,6 +137,7 @@ export function GiftReservationModal({
               value={donorContact}
               onChange={(event) => setDonorContact(event.target.value)}
               autoComplete="tel"
+              required
               className="field"
             />
           </div>

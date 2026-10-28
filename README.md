@@ -213,9 +213,9 @@ O enquadramento do hero está em `weddingConfig.heroImage`: desktop e tablet em 
 
 ## Configuração
 
-Tudo que é dado do casamento fica em `src/config/wedding.ts`: nomes, data, local, versículo, PIX e fotografia.
+Tudo que é dado público do casamento fica em `src/config/wedding.ts`: nomes, data, local, versículo e fotografia.
 
-A chave PIX ainda é o marcador `CHAVE_PIX_A_DEFINIR` em `src/config/wedding.ts`. Enquanto estiver assim, o site mostra “Chave PIX a definir”, não copia esse texto e o QR permanece demonstrativo. As variáveis `PIX_KEY`, `PIX_RECEIVER_NAME` e `PIX_RECEIVER_CITY` estão apenas preparadas no `.env.example`. O site ainda não lê esses valores. Não há tabela de contribuição.
+A chave PIX fica na configuração administrativa, em uma única linha `WeddingSettings`. Enquanto o PIX estiver desativado, a seção pública não aparece. Não há tabela de contribuição.
 
 ## Variáveis de ambiente
 

@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { EventDetails } from "@/components/wedding/EventDetails"
 import { FaithSection } from "@/components/wedding/FaithSection"
 import { FAQ } from "@/components/wedding/FAQ"
@@ -7,7 +8,7 @@ import { GiftList } from "@/components/wedding/GiftList"
 import { Hero } from "@/components/wedding/Hero"
 import { HomeShell } from "@/components/wedding/HomeShell"
 import { MessageSection } from "@/components/wedding/MessageSection"
-import { PixSection } from "@/components/wedding/PixSection"
+import { PixSectionGate } from "@/components/wedding/PixSectionGate"
 import { RSVPCallToAction } from "@/components/wedding/RSVPCallToAction"
 import { existingGiftImages } from "@/lib/media"
 
@@ -19,7 +20,9 @@ export default function Page() {
       <EventDetails />
       <RSVPCallToAction />
       <GiftList availableImages={existingGiftImages()} />
-      <PixSection />
+      <Suspense fallback={null}>
+        <PixSectionGate />
+      </Suspense>
       <MessageSection />
       <FAQ />
       <FinalSection />

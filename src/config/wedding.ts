@@ -31,13 +31,6 @@ export const weddingConfig = {
     reference: "Cânticos 8:7",
   },
 
-  pix: {
-    enabled: true,
-    key: "CHAVE_PIX_A_DEFINIR",
-    placeholderKey: "CHAVE_PIX_A_DEFINIR",
-    receiver: "Karen e Alexandre",
-  },
-
   heroImage: {
     src: "/images/casal-hero.jpg",
     alt: "Karen e Alexandre",
@@ -83,8 +76,6 @@ export const weddingConfig = {
     pixTitle: "Prefere nos presentear de outra forma?",
     pixText:
       "Se desejar, você também pode contribuir através do PIX.\nTodo carinho será recebido com muita gratidão.",
-    pixPendingLabel: "Chave PIX a definir",
-    pixPendingNote: "A chave ainda será definida. A cópia fica disponível quando ela for informada.",
     pixCopy: "Copiar chave PIX",
     pixCopied: "Chave copiada ✓",
     messageTitle: "Deixe uma mensagem para nós",

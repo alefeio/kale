@@ -1,6 +1,6 @@
 "use client"
 
-import { Gift, LayoutDashboard, LogOut, Mail, Menu, Package, Ticket, X } from "lucide-react"
+import { Gift, LayoutDashboard, LogOut, Mail, Menu, Package, Settings, Ticket, X } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
@@ -12,6 +12,7 @@ const links = [
   { href: "/admin/presentes", label: "Presentes", icon: Gift },
   { href: "/admin/reservas", label: "Reservas", icon: Package },
   { href: "/admin/mensagens", label: "Mensagens", icon: Mail },
+  { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
 ]
 
 export function AdminShell({

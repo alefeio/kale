@@ -3,7 +3,9 @@ import Link from "next/link"
 export const instant = false
 import { CreateInvitationForm } from "@/components/admin/CreateInvitationForm"
 import { InvitationCopyButton } from "@/components/admin/InvitationCopyButton"
+import { InvitationWhatsAppShare } from "@/components/admin/InvitationWhatsAppShare"
 import { requireAdmin } from "@/lib/admin"
+import { invitationShareText, invitationUrl } from "@/lib/invitation-link"
 import { deriveAttendanceStatus } from "@/lib/db/mappers"
 import { prisma } from "@/lib/db/prisma"
 
@@ -42,9 +44,10 @@ export default async function InvitationsPage({
       label: true,
       code: true,
       active: true,
+      token: true,
       guests: {
         orderBy: { sortOrder: "asc" },
-        select: { name: true, attending: true },
+        select: { name: true, attending: true, whatsapp: true },
       },
       response: { select: { respondedAt: true } },
     },
@@ -71,6 +74,7 @@ export default async function InvitationsPage({
         <ul className="flex flex-col gap-4">
           {invitations.map((invitation) => {
             const status = deriveAttendanceStatus(invitation.guests)
+            const url = invitationUrl(invitation.token)
             return (
               <li key={invitation.id} className="border border-olive/10 bg-white p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -85,11 +89,16 @@ export default async function InvitationsPage({
                       Resposta: {invitation.response ? "Recebida" : "Ainda não"}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link href={`/admin/convites/${invitation.id}`} className="btn btn-secondary">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <Link href={`/admin/convites/${invitation.id}`} className="btn btn-secondary w-full sm:w-auto">
                       Editar
                     </Link>
                     <InvitationCopyButton id={invitation.id} />
+                    <InvitationWhatsAppShare
+                      shareText={invitationShareText(url, invitation.code)}
+                      guests={invitation.guests}
+                      label="WhatsApp"
+                    />
                   </div>
                 </div>
                 <details className="mt-4">

@@ -13,7 +13,7 @@ export function InvitationCopyButton({ id }: { id: string }) {
     <div>
       <button
         type="button"
-        className="btn btn-secondary"
+        className="btn btn-secondary w-full sm:w-auto"
         disabled={pending}
         onClick={() => {
           setError("")

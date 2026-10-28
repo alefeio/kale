@@ -13,6 +13,7 @@ import {
   type AdminActionResult,
 } from "@/actions/admin"
 import { CopyInvitation } from "@/components/admin/CopyInvitation"
+import { InvitationWhatsAppShare } from "@/components/admin/InvitationWhatsAppShare"
 import { formatBrazilianMobile } from "@/lib/phone"
 
 type GuestItem = { id: string; name: string; whatsapp: string | null; attending: boolean | null }
@@ -226,6 +227,13 @@ export function InvitationEditor({
       <section className="border border-olive/10 bg-white p-4 sm:p-6">
         <h2 className="font-serif text-3xl text-olive-dark">Código e link</h2>
         <CopyInvitation url={share.url} code={share.code} shareText={share.shareText} />
+        <div className="mt-3">
+          <InvitationWhatsAppShare
+            shareText={share.shareText}
+            guests={invitation.guests}
+            label="Compartilhar no WhatsApp"
+          />
+        </div>
       </section>
 
       <section className="border border-olive/10 bg-white p-4 sm:p-6">

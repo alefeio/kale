@@ -1,8 +1,5 @@
-function plain(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
+function withoutAccents(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 }
 
 function field(id: string, value: string) {
@@ -23,14 +20,16 @@ function crc16(value: string) {
 
 export function buildPixBrCode(key: string, receiver: string, city = "BELEM") {
   const account = field("00", "br.gov.bcb.pix") + field("01", key)
+  const additional = field("05", "***")
   const body = [
     field("00", "01"),
     field("26", account),
     field("52", "0000"),
     field("53", "986"),
     field("58", "BR"),
-    field("59", plain(receiver).slice(0, 25)),
-    field("60", plain(city).slice(0, 15)),
+    field("59", withoutAccents(receiver).slice(0, 25)),
+    field("60", withoutAccents(city).toUpperCase().slice(0, 15)),
+    field("62", additional),
     "6304",
   ].join("")
 

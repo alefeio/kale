@@ -100,6 +100,26 @@ model Message {
   createdAt DateTime @default(now())
 }
 
+enum PixKeyType {
+  PHONE
+  EMAIL
+  CPF
+  CNPJ
+  EVP
+}
+
+model WeddingSettings {
+  id          String      @id
+  pixEnabled  Boolean     @default(false)
+  pixKeyType  PixKeyType?
+  pixKey      String?
+  pixReceiver String?
+  pixCity     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model User {
   id            String    @id
   name          String

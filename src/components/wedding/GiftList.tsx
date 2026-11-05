@@ -1,9 +1,14 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useMemo, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { GiftCard } from "@/components/wedding/GiftCard"
 import { GiftReservationModal } from "@/components/wedding/GiftReservationModal"
 import { weddingConfig } from "@/config/wedding"
+import {
+  giftListFromItems,
+  loadGiftListView,
+  type GiftListViewState,
+} from "@/lib/guest-recovery"
 import { giftService } from "@/services/gifts"
 import { giftCategories, giftCategoryLabels, type Gift, type GiftCategory } from "@/types/gift"
 
@@ -11,32 +16,47 @@ const filters = ["todos", ...giftCategories] as const
 type Filter = (typeof filters)[number]
 
 export function GiftList({ availableImages }: { availableImages: string[] }) {
-  const [gifts, setGifts] = useState<Gift[] | null>(null)
+  const [view, setView] = useState<GiftListViewState>({ status: "loading" })
   const [filter, setFilter] = useState<Filter>("todos")
   const [selected, setSelected] = useState<Gift | null>(null)
   const [freshId, setFreshId] = useState<string | null>(null)
+  const requestId = useRef(0)
   const { copy } = weddingConfig
   const readyImages = useMemo(() => new Set(availableImages), [availableImages])
+  const gifts = view.status === "loading" ? null : view.gifts
 
   useLayoutEffect(() => {
     return () => setSelected(null)
   }, [])
 
-  function reloadGifts() {
-    giftService.getGifts().then(setGifts).catch(() => setGifts([]))
-  }
-
   useEffect(() => {
-    let active = true
-    giftService.getGifts().then((items) => {
-      if (active) setGifts(items)
+    const id = ++requestId.current
+    void loadGiftListView(() => giftService.getGifts()).then((next) => {
+      if (id !== requestId.current) return
+      setView(next)
     })
     return () => {
-      active = false
+      requestId.current += 1
     }
   }, [])
 
+  async function reload(previous: Gift[] | null) {
+    const id = ++requestId.current
+    if (!previous) setView({ status: "loading" })
+    const next = await loadGiftListView(() => giftService.getGifts(), previous)
+    if (id !== requestId.current) return
+    setView(next)
+  }
+
   const visible = (gifts ?? []).filter((gift) => filter === "todos" || gift.category === filter)
+  const showEmptyCategory = view.status === "success" && visible.length === 0
+  const showEmptyList = view.status === "empty"
+  const showError = view.status === "error"
+  const showGrid =
+    gifts !== null &&
+    (view.status === "success" ||
+      view.status === "empty" ||
+      (view.status === "error" && gifts.length > 0))
 
   return (
     <section id="presentes" className="section-anchor px-5 py-20 sm:py-28">
@@ -70,23 +90,36 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
           })}
         </div>
 
-        {gifts === null ? (
+        {view.status === "loading" ? (
           <>
             <p className="sr-only">Carregando presentes</p>
             <div className="mt-14 grid gap-x-10 gap-y-16 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
-            {Array.from({ length: 6 }, (_, index) => (
-              <div key={index}>
-                <div className="aspect-[4/3] bg-cream" />
-                <div className="space-y-3 px-4 py-5">
-                  <div className="h-3 w-16 bg-cream" />
-                  <div className="h-6 w-40 bg-cream" />
-                  <div className="h-10 w-full bg-cream" />
+              {Array.from({ length: 6 }, (_, index) => (
+                <div key={index}>
+                  <div className="aspect-[4/3] bg-cream" />
+                  <div className="space-y-3 px-4 py-5">
+                    <div className="h-3 w-16 bg-cream" />
+                    <div className="h-6 w-40 bg-cream" />
+                    <div className="h-10 w-full bg-cream" />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
           </>
-        ) : (
+        ) : null}
+
+        {showError ? (
+          <div className="mt-10 text-center">
+            <p role="alert" className="text-brown">
+              {view.message}
+            </p>
+            <button type="button" className="btn btn-secondary mt-6" onClick={() => void reload(gifts)}>
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
+
+        {showGrid ? (
           <div className="mt-14 grid gap-x-10 gap-y-16 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((gift) => (
               <GiftCard
@@ -98,9 +131,9 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
               />
             ))}
           </div>
-        )}
+        ) : null}
 
-        {gifts !== null && visible.length === 0 ? (
+        {showEmptyList || showEmptyCategory ? (
           <p className="mt-10 text-center text-brown">Nenhum presente nesta categoria.</p>
         ) : null}
       </div>
@@ -110,11 +143,18 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
         onClose={() => setSelected(null)}
         onReserved={(updated) => {
           setFreshId(updated.id)
-          setGifts((current) =>
-            current?.map((item) => (item.id === updated.id ? { ...item, status: "reserved" } : item)) ?? current,
-          )
+          setView((current) => {
+            const currentGifts =
+              current.status === "loading" || current.gifts === null ? [] : current.gifts
+            const nextGifts = currentGifts.map((item) =>
+              item.id === updated.id ? { ...item, status: "reserved" as const } : item,
+            )
+            return giftListFromItems(nextGifts)
+          })
         }}
-        onConflict={reloadGifts}
+        onConflict={() => {
+          void reload(gifts)
+        }}
       />
     </section>
   )

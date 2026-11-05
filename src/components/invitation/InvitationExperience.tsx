@@ -1,52 +1,96 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { GuestSelector } from "@/components/invitation/GuestSelector"
 import { InvalidInvitation } from "@/components/invitation/InvalidInvitation"
 import { InvitationHeader } from "@/components/invitation/InvitationHeader"
 import { InvitationSkeleton } from "@/components/invitation/InvitationSkeleton"
 import { RSVPConfirmation } from "@/components/invitation/RSVPConfirmation"
 import { weddingConfig } from "@/config/wedding"
+import {
+  canStartGuestWrite,
+  loadInvitationView,
+  RSVP_SAVE_FAILED_MESSAGE,
+  RSVP_UNKNOWN_OUTCOME_HINT,
+  type InvitationViewState,
+} from "@/lib/guest-recovery"
 import { rsvpService } from "@/services/rsvp"
 import type { Invitation } from "@/types/invitation"
 
+function selectionFromInvitation(invitation: Invitation) {
+  return Object.fromEntries(invitation.guests.map((guest) => [guest.id, Boolean(guest.attending)]))
+}
+
 export function InvitationExperience({ token }: { token: string }) {
-  const [invitation, setInvitation] = useState<Invitation | null | undefined>(undefined)
+  const [view, setView] = useState<InvitationViewState>({ status: "loading" })
   const [editing, setEditing] = useState(false)
   const [selection, setSelection] = useState<Record<string, boolean>>({})
   const [note, setNote] = useState("")
   const [pending, setPending] = useState(false)
   const [error, setError] = useState("")
+  const [needsRefresh, setNeedsRefresh] = useState(false)
+  const requestId = useRef(0)
   const { copy } = weddingConfig
 
+  function applyLoaded(next: InvitationViewState) {
+    setView(next)
+    if (next.status === "success") {
+      setSelection(selectionFromInvitation(next.invitation))
+      setNote(next.invitation.message)
+      setEditing(false)
+    }
+  }
+
   useEffect(() => {
-    let active = true
-    rsvpService.getInvitationByToken(token).then((data) => {
-      if (!active) return
-      setInvitation(data)
-      if (data) {
-        setSelection(
-          Object.fromEntries(data.guests.map((guest) => [guest.id, Boolean(guest.attending)])),
-        )
-        setNote(data.message)
-      }
+    const id = ++requestId.current
+    void loadInvitationView(token, (value) => rsvpService.getInvitationByToken(value)).then((next) => {
+      if (id !== requestId.current) return
+      applyLoaded(next)
+      setError("")
+      setNeedsRefresh(false)
     })
     return () => {
-      active = false
+      requestId.current += 1
     }
   }, [token])
 
-  if (invitation === undefined) return <InvitationSkeleton />
-  if (!invitation) return <InvalidInvitation />
+  async function retryLoad() {
+    const id = ++requestId.current
+    setView({ status: "loading" })
+    setError("")
+    setNeedsRefresh(false)
+    const next = await loadInvitationView(token, (value) => rsvpService.getInvitationByToken(value))
+    if (id !== requestId.current) return
+    applyLoaded(next)
+  }
 
+  if (view.status === "loading") return <InvitationSkeleton />
+  if (view.status === "not-found") return <InvalidInvitation />
+  if (view.status === "error") {
+    return (
+      <div className="mx-auto max-w-lg px-5 py-24 text-center">
+        <h1 className="font-serif text-4xl text-olive-dark">Convite temporariamente indisponível</h1>
+        <p className="mt-4 leading-7 text-brown" role="alert">
+          {view.message}
+        </p>
+        <button type="button" className="btn btn-primary mt-10" onClick={() => void retryLoad()}>
+          Tentar novamente
+        </button>
+      </div>
+    )
+  }
+
+  const invitation = view.invitation
   const showForm = invitation.status === "pending" || editing
 
   async function save(nextSelection: Record<string, boolean>) {
+    if (!canStartGuestWrite(pending)) return
     setPending(true)
     setError("")
+    setNeedsRefresh(false)
     const payload = {
-      token: invitation!.token,
-      guests: invitation!.guests.map((guest) => ({
+      token: invitation.token,
+      guests: invitation.guests.map((guest) => ({
         id: guest.id,
         attending: Boolean(nextSelection[guest.id]),
       })),
@@ -55,24 +99,24 @@ export function InvitationExperience({ token }: { token: string }) {
 
     try {
       const updated =
-        invitation!.status === "pending"
+        invitation.status === "pending"
           ? await rsvpService.confirmAttendance(payload)
           : await rsvpService.updateAttendance(payload)
-      setInvitation(updated)
-      setSelection(
-        Object.fromEntries(updated.guests.map((guest) => [guest.id, Boolean(guest.attending)])),
-      )
+      setView({ status: "success", invitation: updated })
+      setSelection(selectionFromInvitation(updated))
       setNote(updated.message)
       setEditing(false)
     } catch {
-      setError("Não foi possível guardar a confirmação agora.")
+      setError(RSVP_SAVE_FAILED_MESSAGE)
+      setNeedsRefresh(true)
     } finally {
       setPending(false)
     }
   }
 
   function confirm() {
-    const someone = invitation!.guests.some((guest) => selection[guest.id])
+    if (!canStartGuestWrite(pending) || needsRefresh) return
+    const someone = invitation.guests.some((guest) => selection[guest.id])
     if (!someone) {
       setError("Selecione quem poderá estar conosco ou informe que não poderão comparecer.")
       return
@@ -81,9 +125,32 @@ export function InvitationExperience({ token }: { token: string }) {
   }
 
   function decline() {
-    const none = Object.fromEntries(invitation!.guests.map((guest) => [guest.id, false]))
+    if (!canStartGuestWrite(pending) || needsRefresh) return
+    const none = Object.fromEntries(invitation.guests.map((guest) => [guest.id, false]))
     setSelection(none)
     void save(none)
+  }
+
+  async function refreshPersistedState() {
+    if (!canStartGuestWrite(pending)) return
+    setPending(true)
+    setError("")
+    try {
+      const next = await loadInvitationView(token, (value) => rsvpService.getInvitationByToken(value))
+      if (next.status === "success") {
+        setView(next)
+        setSelection(selectionFromInvitation(next.invitation))
+        setNote(next.invitation.message)
+        setEditing(next.invitation.status === "pending")
+        setNeedsRefresh(false)
+      } else if (next.status === "not-found") {
+        setView(next)
+      } else if (next.status === "error") {
+        setError(next.message)
+      }
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
@@ -102,7 +169,7 @@ export function InvitationExperience({ token }: { token: string }) {
             guests={invitation.guests}
             selection={selection}
             onToggle={(id) => {
-              setError("")
+              if (!needsRefresh) setError("")
               setSelection((current) => ({ ...current, [id]: !current[id] }))
             }}
           />
@@ -122,14 +189,30 @@ export function InvitationExperience({ token }: { token: string }) {
           {error ? (
             <p role="alert" className="mt-4 text-sm text-olive-dark">
               {error}
+              {needsRefresh ? ` ${RSVP_UNKNOWN_OUTCOME_HINT}` : ""}
             </p>
           ) : null}
 
           <div className="mt-8 flex flex-col gap-3">
-            <button type="submit" className="btn btn-primary" disabled={pending}>
+            {needsRefresh ? (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={pending}
+                onClick={() => void refreshPersistedState()}
+              >
+                {pending ? "Atualizando..." : "Atualizar estado do convite"}
+              </button>
+            ) : null}
+            <button type="submit" className="btn btn-primary" disabled={pending || needsRefresh}>
               {pending ? "Guardando..." : copy.invitationConfirm}
             </button>
-            <button type="button" className="btn btn-ghost" onClick={decline} disabled={pending}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={decline}
+              disabled={pending || needsRefresh}
+            >
               {copy.invitationDecline}
             </button>
           </div>

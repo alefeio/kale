@@ -115,10 +115,10 @@ export function EventDetails({ site }: { site: ResolvedWeddingSettings }) {
         </div>
 
         <div id="local" className={`section-anchor ${multiple ? "grid gap-10" : ""}`}>
-          {locations.map((location, index) => (
+          {locations.map((location) => (
             <div key={location.id}>
-              {multiple && index === 1 ? (
-                <p className="mb-6 text-[0.68rem] tracking-[0.22em] text-brown uppercase">Depois da cerimônia</p>
+              {multiple && location.kind === "additional" && location.startMode === "AFTER_MAIN" ? (
+                <p className="mb-6 text-[0.68rem] tracking-[0.22em] text-brown uppercase">Após a cerimônia</p>
               ) : null}
               <LocationBlock location={location} site={site} showDate={multiple && location.kind === "primary"} />
             </div>

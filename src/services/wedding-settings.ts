@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/db/prisma"
+import {
+  assertServiceAdditionalLocationId,
+  guardReorderAdditionalLocationIds,
+} from "@/lib/event-location-guards"
 import type { PixKeyType } from "@/lib/pix-key"
 import {
   resolveWeddingSettings,
@@ -194,28 +198,36 @@ export async function createEventLocation(data: AdditionalLocationInput) {
     where: { weddingSettingsId: WEDDING_SETTINGS_ID },
     _max: { sortOrder: true },
   })
+  // Always append; sortOrder 0 must not collapse into a falsy overwrite of existing rows.
+  const sortOrder = (max._max.sortOrder ?? -1) + 1
   return prisma.weddingEventLocation.create({
     data: {
       weddingSettingsId: WEDDING_SETTINGS_ID,
       ...data,
-      sortOrder: data.sortOrder || (max._max.sortOrder ?? -1) + 1,
+      sortOrder,
     },
   })
 }
 
 export async function updateEventLocation(id: string, data: AdditionalLocationInput) {
+  assertServiceAdditionalLocationId(id)
   const existing = await prisma.weddingEventLocation.findFirst({
     where: { id, weddingSettingsId: WEDDING_SETTINGS_ID },
-    select: { id: true },
+    select: { id: true, sortOrder: true },
   })
   if (!existing) throw new Error("NOT_FOUND")
   return prisma.weddingEventLocation.update({
     where: { id },
-    data,
+    data: {
+      ...data,
+      // Preserve current order unless the caller explicitly provided sortOrder (>= 0).
+      sortOrder: Number.isInteger(data.sortOrder) ? data.sortOrder : existing.sortOrder,
+    },
   })
 }
 
 export async function setEventLocationActive(id: string, active: boolean) {
+  assertServiceAdditionalLocationId(id)
   const existing = await prisma.weddingEventLocation.findFirst({
     where: { id, weddingSettingsId: WEDDING_SETTINGS_ID },
     select: { id: true },
@@ -228,16 +240,18 @@ export async function setEventLocationActive(id: string, active: boolean) {
 }
 
 export async function reorderEventLocations(orderedIds: string[]) {
+  const guarded = guardReorderAdditionalLocationIds(orderedIds)
+  if (!guarded.ok) throw new Error("INVALID_ORDER")
   const existing = await prisma.weddingEventLocation.findMany({
     where: { weddingSettingsId: WEDDING_SETTINGS_ID },
     select: { id: true },
   })
   const known = new Set(existing.map((row) => row.id))
-  if (orderedIds.length !== known.size || orderedIds.some((id) => !known.has(id))) {
+  if (guarded.ids.length !== known.size || guarded.ids.some((id) => !known.has(id))) {
     throw new Error("INVALID_ORDER")
   }
   await prisma.$transaction(
-    orderedIds.map((id, index) =>
+    guarded.ids.map((id, index) =>
       prisma.weddingEventLocation.update({
         where: { id },
         data: { sortOrder: index },
@@ -247,7 +261,7 @@ export async function reorderEventLocations(orderedIds: string[]) {
 }
 
 export async function deleteEventLocation(id: string) {
-  if (id === "primary") throw new Error("PRIMARY_LOCKED")
+  assertServiceAdditionalLocationId(id)
   const existing = await prisma.weddingEventLocation.findFirst({
     where: { id, weddingSettingsId: WEDDING_SETTINGS_ID },
     select: { id: true },

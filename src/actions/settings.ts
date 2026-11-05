@@ -13,6 +13,10 @@ import {
   type WeddingColors,
 } from "@/lib/site-settings"
 import {
+  guardAdditionalLocationId,
+  guardReorderAdditionalLocationIds,
+} from "@/lib/event-location-guards"
+import {
   createEventLocation,
   deleteEventLocation,
   reorderEventLocations,
@@ -162,12 +166,16 @@ export async function updateAdditionalEventLocation(
   },
 ) {
   await requireAdmin()
-  if (!id || id === "primary") return { ok: false as const, error: "O evento principal não pode ser alterado por esta ação." }
+  const locked = guardAdditionalLocationId(id, "update")
+  if (!locked.ok) return { ok: false as const, error: locked.error }
   const parsed = validateAdditionalEventLocation(input)
   if (!parsed.ok) return { ok: false as const, error: parsed.error }
   try {
     await updateEventLocation(id, parsed.data)
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "PRIMARY_LOCKED") {
+      return { ok: false as const, error: "O evento principal não pode ser alterado por esta ação." }
+    }
     return { ok: false as const, error: "Não encontramos este local." }
   }
   revalidateSite()
@@ -176,10 +184,14 @@ export async function updateAdditionalEventLocation(
 
 export async function toggleAdditionalEventLocation(id: string, active: boolean) {
   await requireAdmin()
-  if (!id || id === "primary") return { ok: false as const, error: "O evento principal não pode ser desativado." }
+  const locked = guardAdditionalLocationId(id, "deactivate")
+  if (!locked.ok) return { ok: false as const, error: locked.error }
   try {
     await setEventLocationActive(id, active)
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "PRIMARY_LOCKED") {
+      return { ok: false as const, error: "O evento principal não pode ser desativado." }
+    }
     return { ok: false as const, error: "Não encontramos este local." }
   }
   revalidateSite()
@@ -188,11 +200,10 @@ export async function toggleAdditionalEventLocation(id: string, active: boolean)
 
 export async function reorderAdditionalEventLocations(orderedIds: string[]) {
   await requireAdmin()
-  if (!Array.isArray(orderedIds) || orderedIds.some((id) => typeof id !== "string" || !id || id === "primary")) {
-    return { ok: false as const, error: "Ordem inválida." }
-  }
+  const order = guardReorderAdditionalLocationIds(orderedIds)
+  if (!order.ok) return { ok: false as const, error: order.error }
   try {
-    await reorderEventLocations(orderedIds)
+    await reorderEventLocations(order.ids)
   } catch {
     return { ok: false as const, error: "Não foi possível reordenar os locais." }
   }
@@ -202,12 +213,13 @@ export async function reorderAdditionalEventLocations(orderedIds: string[]) {
 
 export async function removeAdditionalEventLocation(id: string) {
   await requireAdmin()
-  if (!id || id === "primary") return { ok: false as const, error: "O evento principal não pode ser excluído." }
+  const locked = guardAdditionalLocationId(id, "delete")
+  if (!locked.ok) return { ok: false as const, error: locked.error }
   try {
     await deleteEventLocation(id)
   } catch (error) {
     if (error instanceof Error && error.message === "PRIMARY_LOCKED") {
-      return { ok: false as const, error: "O evento principal não pode ser excluído." }
+      return { ok: false as const, error: locked.error }
     }
     return { ok: false as const, error: "Não encontramos este local." }
   }

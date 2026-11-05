@@ -251,6 +251,78 @@ test("calendar keeps ceremony and refuses fictional dinner times", () => {
   assert.equal(exactIcs.includes("casamento-local-exact@convite"), true)
 })
 
-test("primary event cannot be deleted by id convention", () => {
-  assert.equal("primary" === "primary", true)
+test("primary ceremony mutations are refused; additional ids pass the guard", async () => {
+  const {
+    assertServiceAdditionalLocationId,
+    guardAdditionalLocationId,
+    guardReorderAdditionalLocationIds,
+  } = await import("./event-location-guards")
+  const { readFileSync } = await import("node:fs")
+  const { fileURLToPath } = await import("node:url")
+  const { dirname, join } = await import("node:path")
+
+  assert.equal(guardAdditionalLocationId("primary", "delete").ok, false)
+  assert.equal(guardAdditionalLocationId("primary", "deactivate").ok, false)
+  assert.equal(guardAdditionalLocationId("primary", "update").ok, false)
+  assert.equal(guardAdditionalLocationId("", "delete").ok, false)
+  assert.equal(guardAdditionalLocationId("loc_dinner", "delete").ok, true)
+  assert.equal(guardAdditionalLocationId("loc_dinner", "deactivate").ok, true)
+  assert.equal(guardAdditionalLocationId("loc_dinner", "update").ok, true)
+
+  assert.throws(() => assertServiceAdditionalLocationId("primary"), /PRIMARY_LOCKED/)
+  assert.throws(() => assertServiceAdditionalLocationId(""), /PRIMARY_LOCKED/)
+  assert.doesNotThrow(() => assertServiceAdditionalLocationId("loc_dinner"))
+
+  assert.equal(guardReorderAdditionalLocationIds(["a", "primary"]).ok, false)
+  assert.equal(guardReorderAdditionalLocationIds(["a", "a"]).ok, false)
+  assert.equal(guardReorderAdditionalLocationIds(["a", "b"]).ok, true)
+
+  const actionsPath = join(dirname(fileURLToPath(import.meta.url)), "../actions/settings.ts")
+  const actionsSource = readFileSync(actionsPath, "utf8")
+  for (const name of [
+    "createAdditionalEventLocation",
+    "updateAdditionalEventLocation",
+    "toggleAdditionalEventLocation",
+    "reorderAdditionalEventLocations",
+    "removeAdditionalEventLocation",
+  ]) {
+    const block = actionsSource.split(`export async function ${name}`)[1]?.slice(0, 400) ?? ""
+    assert.match(block, /await requireAdmin\(\)/, `${name} must call requireAdmin`)
+  }
+})
+
+test("AFTER_MAIN eyebrow is driven by startMode, not list index", () => {
+  const site = resolveWeddingSettings(null, [
+    row({
+      id: "exact-first",
+      title: "Ensaio",
+      venueName: "Salão",
+      type: "OTHER",
+      startMode: "EXACT",
+      startsAt: new Date(Date.UTC(2026, 10, 12, 21, 0, 0)),
+      sortOrder: 0,
+    }),
+    row({
+      id: "dinner",
+      title: "Jantar",
+      venueName: "Varanda Boi Novo",
+      startMode: "AFTER_MAIN",
+      sortOrder: 1,
+    }),
+    row({
+      id: "later",
+      title: "Brunch",
+      venueName: "Café",
+      type: "OTHER",
+      startMode: "UNSPECIFIED",
+      sortOrder: 2,
+    }),
+  ])
+  const [, exact, dinner, brunch] = site.eventLocations
+  assert.equal(exact.startMode, "EXACT")
+  assert.notEqual(exact.scheduleLabel, "Após a cerimônia")
+  assert.equal(dinner.startMode, "AFTER_MAIN")
+  assert.equal(dinner.scheduleLabel, "Após a cerimônia")
+  assert.equal(brunch.startMode, "UNSPECIFIED")
+  assert.equal(brunch.scheduleLabel, "Horário a definir")
 })

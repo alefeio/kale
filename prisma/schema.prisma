@@ -108,6 +108,19 @@ enum PixKeyType {
   EVP
 }
 
+enum EventLocationType {
+  CEREMONY
+  DINNER
+  RECEPTION
+  OTHER
+}
+
+enum EventStartMode {
+  EXACT
+  AFTER_MAIN
+  UNSPECIFIED
+}
+
 model WeddingSettings {
   id          String      @id
   pixEnabled  Boolean     @default(false)
@@ -150,8 +163,35 @@ model WeddingSettings {
   colorText        String?
   colorHeroBase    String?
 
+  eventLocations WeddingEventLocation[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model WeddingEventLocation {
+  id                String            @id @default(cuid())
+  weddingSettingsId String
+  type              EventLocationType
+  title             String
+  venueName         String
+  venueAddress      String?
+  venueNeighborhood String?
+  venueCity         String
+  venueState        String
+  description       String?
+  startMode         EventStartMode    @default(UNSPECIFIED)
+  startsAt          DateTime?
+  mapsUrl           String?
+  sortOrder         Int               @default(0)
+  active            Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  weddingSettings WeddingSettings @relation(fields: [weddingSettingsId], references: [id], onDelete: Cascade)
+
+  @@index([weddingSettingsId, sortOrder])
+  @@index([weddingSettingsId, active])
 }
 
 model User {

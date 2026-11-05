@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/admin"
 import { uploadPublicSiteImage } from "@/lib/apimg"
 import { validatePixSettings } from "@/lib/pix-key"
 import {
+  validateAdditionalEventLocation,
   validateEventAndVenue,
   validateFaith,
   validateIdentityAndHero,
@@ -12,12 +13,17 @@ import {
   type WeddingColors,
 } from "@/lib/site-settings"
 import {
+  createEventLocation,
+  deleteEventLocation,
+  reorderEventLocations,
   saveEventAndVenueSettings,
   saveFaithSettings,
   saveHeroImage,
   saveIdentityAndHeroSettings,
   saveThemeSettings,
   saveWeddingSettings,
+  setEventLocationActive,
+  updateEventLocation,
 } from "@/services/wedding-settings"
 
 function revalidateSite() {
@@ -111,4 +117,100 @@ export async function uploadHeroImage(formData: FormData) {
   await saveHeroImage({ heroImageUrl: uploaded.url, heroImagePublicId: uploaded.publicId })
   revalidateSite()
   return { ok: true as const, message: "Foto do Hero atualizada.", url: uploaded.url }
+}
+
+export async function createAdditionalEventLocation(input: {
+  type: string
+  title: string
+  venueName: string
+  venueAddress: string
+  venueNeighborhood: string
+  venueCity: string
+  venueState: string
+  description: string
+  startMode: string
+  date: string
+  time: string
+  mapsUrl: string
+  active: boolean
+}) {
+  await requireAdmin()
+  const parsed = validateAdditionalEventLocation(input)
+  if (!parsed.ok) return { ok: false as const, error: parsed.error }
+  await createEventLocation(parsed.data)
+  revalidateSite()
+  return { ok: true as const, message: "Local adicional criado." }
+}
+
+export async function updateAdditionalEventLocation(
+  id: string,
+  input: {
+    type: string
+    title: string
+    venueName: string
+    venueAddress: string
+    venueNeighborhood: string
+    venueCity: string
+    venueState: string
+    description: string
+    startMode: string
+    date: string
+    time: string
+    mapsUrl: string
+    active: boolean
+    sortOrder?: number
+  },
+) {
+  await requireAdmin()
+  if (!id || id === "primary") return { ok: false as const, error: "O evento principal não pode ser alterado por esta ação." }
+  const parsed = validateAdditionalEventLocation(input)
+  if (!parsed.ok) return { ok: false as const, error: parsed.error }
+  try {
+    await updateEventLocation(id, parsed.data)
+  } catch {
+    return { ok: false as const, error: "Não encontramos este local." }
+  }
+  revalidateSite()
+  return { ok: true as const, message: "Local adicional atualizado." }
+}
+
+export async function toggleAdditionalEventLocation(id: string, active: boolean) {
+  await requireAdmin()
+  if (!id || id === "primary") return { ok: false as const, error: "O evento principal não pode ser desativado." }
+  try {
+    await setEventLocationActive(id, active)
+  } catch {
+    return { ok: false as const, error: "Não encontramos este local." }
+  }
+  revalidateSite()
+  return { ok: true as const, message: active ? "Local ativado." : "Local desativado." }
+}
+
+export async function reorderAdditionalEventLocations(orderedIds: string[]) {
+  await requireAdmin()
+  if (!Array.isArray(orderedIds) || orderedIds.some((id) => typeof id !== "string" || !id || id === "primary")) {
+    return { ok: false as const, error: "Ordem inválida." }
+  }
+  try {
+    await reorderEventLocations(orderedIds)
+  } catch {
+    return { ok: false as const, error: "Não foi possível reordenar os locais." }
+  }
+  revalidateSite()
+  return { ok: true as const, message: "Ordem atualizada." }
+}
+
+export async function removeAdditionalEventLocation(id: string) {
+  await requireAdmin()
+  if (!id || id === "primary") return { ok: false as const, error: "O evento principal não pode ser excluído." }
+  try {
+    await deleteEventLocation(id)
+  } catch (error) {
+    if (error instanceof Error && error.message === "PRIMARY_LOCKED") {
+      return { ok: false as const, error: "O evento principal não pode ser excluído." }
+    }
+    return { ok: false as const, error: "Não encontramos este local." }
+  }
+  revalidateSite()
+  return { ok: true as const, message: "Local adicional excluído." }
 }

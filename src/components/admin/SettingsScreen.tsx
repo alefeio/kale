@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react"
 import { saveEventAndVenue, saveFaith, saveIdentityAndHero, saveTheme, uploadHeroImage } from "@/actions/settings"
+import { AdditionalLocationsAdmin } from "@/components/admin/AdditionalLocationsAdmin"
 import { PixSettingsForm } from "@/components/admin/PixSettingsForm"
-import { defaultColors, type ResolvedWeddingSettings, type WeddingColors } from "@/lib/site-settings"
+import { defaultColors, type EventLocationRow, type ResolvedWeddingSettings, type WeddingColors } from "@/lib/site-settings"
 import type { WeddingSettingsView } from "@/services/wedding-settings"
 
 const colorFields: { key: keyof WeddingColors; label: string }[] = [
@@ -20,9 +21,11 @@ const colorFields: { key: keyof WeddingColors; label: string }[] = [
 export function SettingsScreen({
   site,
   pix,
+  additionalLocations,
 }: {
   site: ResolvedWeddingSettings
   pix: WeddingSettingsView
+  additionalLocations: EventLocationRow[]
 }) {
   const [tab, setTab] = useState<"site" | "pix">("site")
 
@@ -37,7 +40,7 @@ export function SettingsScreen({
           PIX
         </button>
       </div>
-      {tab === "site" ? <SiteSettings site={site} /> : (
+      {tab === "site" ? <SiteSettings site={site} additionalLocations={additionalLocations} /> : (
         <section className="border border-olive/10 bg-white p-4 sm:p-6">
           <h2 className="font-serif text-3xl text-olive-dark">PIX</h2>
           <div className="mt-5">
@@ -49,13 +52,19 @@ export function SettingsScreen({
   )
 }
 
-function SiteSettings({ site }: { site: ResolvedWeddingSettings }) {
+function SiteSettings({
+  site,
+  additionalLocations,
+}: {
+  site: ResolvedWeddingSettings
+  additionalLocations: EventLocationRow[]
+}) {
   const [colors, setColors] = useState(site.colors)
   return (
     <div className="flex flex-col gap-6">
       <IdentitySection site={site} colors={colors} />
       <ThemeSection colors={colors} onColors={setColors} />
-      <EventSection site={site} />
+      <EventSection site={site} additionalLocations={additionalLocations} />
       <FaithFields site={site} />
     </div>
   )
@@ -251,7 +260,13 @@ function ThemeSection({ colors, onColors }: { colors: WeddingColors; onColors: (
   )
 }
 
-function EventSection({ site }: { site: ResolvedWeddingSettings }) {
+function EventSection({
+  site,
+  additionalLocations,
+}: {
+  site: ResolvedWeddingSettings
+  additionalLocations: EventLocationRow[]
+}) {
   const [date, setDate] = useState(site.event.date)
   const [time, setTime] = useState(site.event.time)
   const [venueName, setVenueName] = useState(site.venue.name)
@@ -266,6 +281,9 @@ function EventSection({ site }: { site: ResolvedWeddingSettings }) {
   return (
     <section className="border border-olive/10 bg-white p-4 sm:p-6">
       <h2 className="font-serif text-3xl text-olive-dark">Evento</h2>
+      <p className="mt-2 text-sm text-brown">
+        O evento principal controla a contagem regressiva, a data pública e o calendário da cerimônia.
+      </p>
       <form
         className="mt-5 flex flex-col gap-4"
         onSubmit={(event) => {
@@ -287,6 +305,7 @@ function EventSection({ site }: { site: ResolvedWeddingSettings }) {
           })
         }}
       >
+        <h3 className="font-serif text-2xl text-olive-dark">Evento principal</h3>
         <label className="text-sm text-brown" htmlFor="event-date">
           Data do evento
           <input id="event-date" className="field mt-2" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
@@ -295,7 +314,7 @@ function EventSection({ site }: { site: ResolvedWeddingSettings }) {
           Hora do evento
           <input id="event-time" className="field mt-2" type="time" value={time} onChange={(event) => setTime(event.target.value)} />
         </label>
-        <h3 className="font-serif text-2xl text-olive-dark">Local</h3>
+        <h3 className="font-serif text-2xl text-olive-dark">Local principal</h3>
         <TextField id="venue-name" label="Nome do local" value={venueName} onChange={setVenueName} />
         <TextField id="venue-address" label="Endereço" value={venueAddress} onChange={setVenueAddress} />
         <TextField id="venue-neighborhood" label="Bairro" value={venueNeighborhood} onChange={setVenueNeighborhood} />
@@ -304,6 +323,7 @@ function EventSection({ site }: { site: ResolvedWeddingSettings }) {
         <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={pending}>Salvar evento e local</button>
         <Feedback message={message} error={error} />
       </form>
+      <AdditionalLocationsAdmin initial={additionalLocations} />
     </section>
   )
 }

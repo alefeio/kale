@@ -50,6 +50,60 @@ export type WeddingSettingsRow = {
   colorHeroBase: string | null
 }
 
+export const EVENT_LOCATION_TYPES = ["CEREMONY", "DINNER", "RECEPTION", "OTHER"] as const
+export type EventLocationTypeValue = (typeof EVENT_LOCATION_TYPES)[number]
+
+export const EVENT_START_MODES = ["EXACT", "AFTER_MAIN", "UNSPECIFIED"] as const
+export type EventStartModeValue = (typeof EVENT_START_MODES)[number]
+
+export const eventLocationTypeLabels: Record<EventLocationTypeValue, string> = {
+  CEREMONY: "Cerimônia",
+  DINNER: "Jantar",
+  RECEPTION: "Recepção",
+  OTHER: "Outro",
+}
+
+export type EventLocationRow = {
+  id: string
+  type: EventLocationTypeValue
+  title: string
+  venueName: string
+  venueAddress: string | null
+  venueNeighborhood: string | null
+  venueCity: string
+  venueState: string
+  description: string | null
+  startMode: EventStartModeValue
+  startsAt: Date | null
+  mapsUrl: string | null
+  sortOrder: number
+  active: boolean
+}
+
+export type ResolvedEventLocation = {
+  id: string
+  kind: "primary" | "additional"
+  type: EventLocationTypeValue
+  typeLabel: string
+  title: string
+  venueName: string
+  venueAddress: string | null
+  venueNeighborhood: string | null
+  venueCity: string
+  venueState: string
+  description: string | null
+  startMode: EventStartModeValue
+  date: string | null
+  time: string | null
+  dateLabel: string | null
+  timeLabel: string | null
+  scheduleLabel: string
+  mapsUrl: string | null
+  sortOrder: number
+  active: boolean
+  calendarEligible: boolean
+}
+
 export type ResolvedWeddingSettings = {
   couple: { bride: string; groom: string; displayName: string; monogram: string }
   hero: {
@@ -76,6 +130,7 @@ export type ResolvedWeddingSettings = {
   }
   faith: { title: string; text: string; verseText: string; verseReference: string }
   venue: { name: string; address: string; neighborhood: string; city: string; state: string }
+  eventLocations: ResolvedEventLocation[]
 }
 
 const months = [
@@ -162,10 +217,122 @@ function height(value: number | null | undefined) {
   return value != null && value >= 60 && value <= 100 ? value : 100
 }
 
-export function resolveWeddingSettings(row: WeddingSettingsRow | null): ResolvedWeddingSettings {
+function scheduleForAdditional(
+  location: EventLocationRow,
+  primaryDateLabel: string,
+): Pick<
+  ResolvedEventLocation,
+  "date" | "time" | "dateLabel" | "timeLabel" | "scheduleLabel" | "calendarEligible"
+> {
+  if (location.startMode === "EXACT" && location.startsAt) {
+    const described = describeEvent(location.startsAt)
+    return {
+      date: described.date,
+      time: described.time,
+      dateLabel: described.dateLabel,
+      timeLabel: described.timeLabel,
+      scheduleLabel:
+        described.dateLabel === primaryDateLabel
+          ? described.timeLabel
+          : `${described.dateLabel} — ${described.timeLabel}`,
+      calendarEligible: true,
+    }
+  }
+  if (location.startMode === "AFTER_MAIN") {
+    return {
+      date: null,
+      time: null,
+      dateLabel: null,
+      timeLabel: null,
+      scheduleLabel: "Após a cerimônia",
+      calendarEligible: false,
+    }
+  }
+  return {
+    date: null,
+    time: null,
+    dateLabel: null,
+    timeLabel: null,
+    scheduleLabel: "Horário a definir",
+    calendarEligible: false,
+  }
+}
+
+export function resolvePrimaryEventLocation(
+  event: ResolvedWeddingSettings["event"],
+  venue: ResolvedWeddingSettings["venue"],
+): ResolvedEventLocation {
+  return {
+    id: "primary",
+    kind: "primary",
+    type: "CEREMONY",
+    typeLabel: eventLocationTypeLabels.CEREMONY,
+    title: event.type,
+    venueName: venue.name,
+    venueAddress: venue.address,
+    venueNeighborhood: venue.neighborhood,
+    venueCity: venue.city,
+    venueState: venue.state,
+    description: null,
+    startMode: "EXACT",
+    date: event.date,
+    time: event.time,
+    dateLabel: event.dateLabel,
+    timeLabel: event.timeLabel,
+    scheduleLabel: `${event.dateLabel} — ${event.timeLabel}`,
+    mapsUrl: null,
+    sortOrder: -1,
+    active: true,
+    calendarEligible: true,
+  }
+}
+
+export function resolveAdditionalEventLocation(
+  location: EventLocationRow,
+  primaryDateLabel: string,
+): ResolvedEventLocation {
+  const schedule = scheduleForAdditional(location, primaryDateLabel)
+  return {
+    id: location.id,
+    kind: "additional",
+    type: location.type,
+    typeLabel: eventLocationTypeLabels[location.type],
+    title: location.title.trim(),
+    venueName: location.venueName.trim(),
+    venueAddress: location.venueAddress?.trim() || null,
+    venueNeighborhood: location.venueNeighborhood?.trim() || null,
+    venueCity: location.venueCity.trim(),
+    venueState: location.venueState.trim(),
+    description: location.description?.trim() || null,
+    startMode: location.startMode,
+    ...schedule,
+    mapsUrl: location.mapsUrl?.trim() || null,
+    sortOrder: location.sortOrder,
+    active: location.active,
+    calendarEligible: schedule.calendarEligible,
+  }
+}
+
+export function resolveWeddingSettings(
+  row: WeddingSettingsRow | null,
+  additionalLocations: EventLocationRow[] = [],
+): ResolvedWeddingSettings {
   const bride = row?.brideName?.trim() || weddingConfig.couple.bride
   const groom = row?.groomName?.trim() || weddingConfig.couple.groom
   const event = row?.eventAt ? describeEvent(row.eventAt) : fallbackEvent()
+  const venue = {
+    name: row?.venueName?.trim() || weddingConfig.venue.name,
+    address: row?.venueAddress?.trim() || weddingConfig.venue.address,
+    neighborhood: row?.venueNeighborhood?.trim() || weddingConfig.venue.neighborhood,
+    city: row?.venueCity?.trim() || weddingConfig.venue.city,
+    state: row?.venueState?.trim() || weddingConfig.venue.state,
+  }
+  const primary = resolvePrimaryEventLocation(event, venue)
+  const additional = additionalLocations
+    .filter((location) => location.active)
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title, "pt-BR"))
+    .map((location) => resolveAdditionalEventLocation(location, event.dateLabel))
 
   return {
     couple: {
@@ -200,13 +367,8 @@ export function resolveWeddingSettings(row: WeddingSettingsRow | null): Resolved
       verseText: row?.verseText?.trim() || weddingConfig.verse.text,
       verseReference: row?.verseReference?.trim() || weddingConfig.verse.reference,
     },
-    venue: {
-      name: row?.venueName?.trim() || weddingConfig.venue.name,
-      address: row?.venueAddress?.trim() || weddingConfig.venue.address,
-      neighborhood: row?.venueNeighborhood?.trim() || weddingConfig.venue.neighborhood,
-      city: row?.venueCity?.trim() || weddingConfig.venue.city,
-      state: row?.venueState?.trim() || weddingConfig.venue.state,
-    },
+    venue,
+    eventLocations: [primary, ...additional],
   }
 }
 
@@ -390,6 +552,111 @@ export function validateFaith(input: {
       faithText: text.data,
       verseText: verse.data,
       verseReference: reference.data,
+    },
+  }
+}
+
+function optionalPlainText(value: string, label: string, max: number): Parsed<string | null> {
+  const text = value.replace(/\r\n/g, "\n").trim()
+  if (!text) return { ok: true, data: null }
+  if (text.length > max) return { ok: false, error: `${label} pode ter no máximo ${max} caracteres.` }
+  if (/[<>]/.test(text)) return { ok: false, error: `Não use HTML em ${label}.` }
+  return { ok: true, data: text }
+}
+
+export function isSafeExternalHttpUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" || url.protocol === "http:"
+  } catch {
+    return false
+  }
+}
+
+export function validateAdditionalEventLocation(input: {
+  type: string
+  title: string
+  venueName: string
+  venueAddress: string
+  venueNeighborhood: string
+  venueCity: string
+  venueState: string
+  description: string
+  startMode: string
+  date: string
+  time: string
+  mapsUrl: string
+  active: boolean
+  sortOrder?: number
+}) {
+  if (!EVENT_LOCATION_TYPES.includes(input.type as EventLocationTypeValue)) {
+    return { ok: false as const, error: "Informe o tipo do local." }
+  }
+  if (!EVENT_START_MODES.includes(input.startMode as EventStartModeValue)) {
+    return { ok: false as const, error: "Informe o modo de horário." }
+  }
+  const title = plainText(input.title, "o título", 120)
+  if (!title.ok) return title
+  const venueName = plainText(input.venueName, "o nome do local", 120)
+  if (!venueName.ok) return venueName
+  const venueAddress = optionalPlainText(input.venueAddress, "o endereço", 180)
+  if (!venueAddress.ok) return venueAddress
+  const venueNeighborhood = optionalPlainText(input.venueNeighborhood, "o bairro", 80)
+  if (!venueNeighborhood.ok) return venueNeighborhood
+  const venueCity = plainText(input.venueCity, "a cidade", 80)
+  if (!venueCity.ok) return venueCity
+  const venueState = plainText(input.venueState, "o estado", 40)
+  if (!venueState.ok) return venueState
+  const description = optionalPlainText(input.description, "a descrição", 500)
+  if (!description.ok) return description
+
+  let startsAt: Date | null = null
+  const startMode = input.startMode as EventStartModeValue
+  if (startMode === "EXACT") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) return { ok: false as const, error: "Informe a data do local." }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.time)) {
+      return { ok: false as const, error: "Informe a hora do local." }
+    }
+    const instant = eventInstant(input.date, input.time)
+    const described = describeEvent(instant)
+    if (Number.isNaN(instant.getTime()) || described.date !== input.date || described.time !== input.time) {
+      return { ok: false as const, error: "Informe a data do local." }
+    }
+    startsAt = instant
+  }
+
+  const mapsRaw = input.mapsUrl.trim()
+  let mapsUrl: string | null = null
+  if (mapsRaw) {
+    if (!isSafeExternalHttpUrl(mapsRaw) || mapsRaw.length > 500) {
+      return { ok: false as const, error: "Informe uma URL de localização válida (http ou https)." }
+    }
+    mapsUrl = mapsRaw
+  }
+
+  let sortOrderValue = 0
+  if (input.sortOrder != null) {
+    const sortOrder = integerInRange(input.sortOrder, 0, 999, "A ordem")
+    if (!sortOrder.ok) return sortOrder
+    sortOrderValue = sortOrder.data
+  }
+
+  return {
+    ok: true as const,
+    data: {
+      type: input.type as EventLocationTypeValue,
+      title: title.data,
+      venueName: venueName.data,
+      venueAddress: venueAddress.data,
+      venueNeighborhood: venueNeighborhood.data,
+      venueCity: venueCity.data,
+      venueState: venueState.data,
+      description: description.data,
+      startMode,
+      startsAt,
+      mapsUrl,
+      active: Boolean(input.active),
+      sortOrder: sortOrderValue,
     },
   }
 }

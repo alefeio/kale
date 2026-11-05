@@ -1,6 +1,16 @@
 import { weddingConfig } from "@/config/wedding"
+import { isSafeExternalHttpUrl } from "@/lib/site-settings"
 
-type Venue = {
+export type VenueLike = {
+  name: string
+  address?: string | null
+  neighborhood?: string | null
+  city: string
+  state: string
+  mapsUrl?: string | null
+}
+
+type LegacyVenue = {
   name: string
   address: string
   neighborhood: string
@@ -8,11 +18,34 @@ type Venue = {
   state: string
 }
 
-export function venueMapsUrl(venue: Venue = weddingConfig.venue) {
-  const query = [venue.name, venue.address, venue.neighborhood, `${venue.city} - ${venue.state}`].join(", ")
+export function locationMapsUrl(location: VenueLike) {
+  const explicit = location.mapsUrl?.trim()
+  if (explicit && isSafeExternalHttpUrl(explicit)) return explicit
+
+  const query = [
+    location.name,
+    location.address?.trim() || null,
+    location.neighborhood?.trim() || null,
+    `${location.city} - ${location.state}`,
+  ]
+    .filter(Boolean)
+    .join(", ")
+
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
 }
 
-export function venueLines(venue: Venue = weddingConfig.venue) {
-  return [venue.name, venue.address, `Bairro ${venue.neighborhood}`, `${venue.city} - ${venue.state}`]
+export function locationLines(location: VenueLike) {
+  const lines = [location.name]
+  if (location.address?.trim()) lines.push(location.address.trim())
+  if (location.neighborhood?.trim()) lines.push(`Bairro ${location.neighborhood.trim()}`)
+  lines.push(`${location.city} - ${location.state}`)
+  return lines
+}
+
+export function venueMapsUrl(venue: LegacyVenue = weddingConfig.venue) {
+  return locationMapsUrl(venue)
+}
+
+export function venueLines(venue: LegacyVenue = weddingConfig.venue) {
+  return locationLines(venue)
 }

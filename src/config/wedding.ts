@@ -7,21 +7,21 @@ export const weddingConfig = {
   },
 
   ceremony: {
-    date: "2026-11-14",
-    time: "19:00",
-    isoDate: "2026-11-14T19:00:00-03:00",
+    date: "2026-11-12",
+    time: "19:30",
+    isoDate: "2026-11-12T19:30:00-03:00",
     type: "Cerimônia religiosa",
-    dateLabel: "14 de novembro de 2026",
-    timeLabel: "19h",
-    dottedDate: "14 • 11 • 2026",
-    numericDate: "14.11.2026",
+    dateLabel: "12 de novembro de 2026",
+    timeLabel: "19h30",
+    dottedDate: "12 • 11 • 2026",
+    numericDate: "12.11.2026",
     calendarDuration: "PT2H",
   },
 
   venue: {
-    name: "Maison Rose Eventos",
-    address: "Passagem Serrao de Castro, nº 272",
-    neighborhood: "Guamá",
+    name: "Salão de festas do Ed. Torres Devant",
+    address: "Travessa Pirajá, nº 520",
+    neighborhood: "Pedreira",
     city: "Belém",
     state: "PA",
   },
@@ -115,11 +115,11 @@ export const weddingConfig = {
   faq: [
     {
       question: "Onde será a cerimônia?",
-      answer: "Maison Rose Eventos, no bairro do Guamá, em Belém.",
+      answer: "Salão de festas do Ed. Torres Devant, no bairro do Pedreira, em Belém.",
     },
     {
       question: "Qual é o horário?",
-      answer: "A cerimônia religiosa terá início às 19h.",
+      answer: "A cerimônia religiosa terá início às 19h30.",
     },
     {
       question: "Como confirmo minha presença?",
@@ -133,7 +133,7 @@ export const weddingConfig = {
   ],
 
   metadata: {
-    title: "Karen & Alexandre — 14.11.2026",
+    title: "Karen & Alexandre — 12.11.2026",
     description:
       "Nosso grande dia está chegando. Confira os detalhes da cerimônia, confirme sua presença e conheça nossa lista de presentes.",
     ogImage: "/images/og-casamento.jpg",

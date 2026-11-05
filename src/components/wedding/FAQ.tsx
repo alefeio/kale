@@ -3,18 +3,41 @@ import type { ResolvedWeddingSettings } from "@/lib/site-settings"
 
 export function FAQ({ site }: { site: ResolvedWeddingSettings }) {
   const { copy, faq } = weddingConfig
-  const items = faq.map((item, index) => {
+  const dinner = site.eventLocations.find(
+    (location) => location.kind === "additional" && location.active && location.type === "DINNER",
+  )
+
+  const items: { question: string; answer: string }[] = faq.map((item, index) => {
     if (index === 0) {
       return {
-        ...item,
+        question: item.question,
         answer: `${site.venue.name}, no bairro do ${site.venue.neighborhood}, em ${site.venue.city}.`,
       }
     }
     if (index === 1) {
-      return { ...item, answer: `A cerimônia religiosa terá início às ${site.event.timeLabel}.` }
+      return {
+        question: item.question,
+        answer: `A cerimônia religiosa terá início às ${site.event.timeLabel}.`,
+      }
     }
-    return item
+    return { question: item.question, answer: item.answer }
   })
+
+  if (dinner) {
+    const place = [dinner.venueName, dinner.venueCity && dinner.venueState ? `${dinner.venueCity}–${dinner.venueState}` : dinner.venueCity]
+      .filter(Boolean)
+      .join(", ")
+    const when =
+      dinner.startMode === "AFTER_MAIN"
+        ? "após a cerimônia"
+        : dinner.scheduleLabel.toLowerCase()
+    items.splice(2, 0, {
+      question: "Haverá jantar após a cerimônia?",
+      answer: dinner.description?.trim()
+        ? dinner.description.trim()
+        : `Sim. Nos reuniremos para um jantar em ${place} ${when}.`,
+    })
+  }
 
   return (
     <section className="px-5 pt-8 pb-8" aria-labelledby="duvidas-titulo">

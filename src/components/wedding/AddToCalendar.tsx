@@ -1,6 +1,6 @@
 "use client"
 
-import { downloadWeddingIcs } from "@/lib/calendar"
+import { dinnerMentionFromLocations, downloadWeddingIcs } from "@/lib/calendar"
 import { weddingConfig } from "@/config/wedding"
 import { useOptionalSite } from "@/components/wedding/site-context"
 
@@ -14,6 +14,7 @@ export function AddToCalendar() {
         type: site.event.type,
         calendarDuration: site.event.calendarDuration,
         venue: site.venue,
+        extraDescription: dinnerMentionFromLocations(site.eventLocations),
       }
     : {
         displayName: weddingConfig.couple.displayName,

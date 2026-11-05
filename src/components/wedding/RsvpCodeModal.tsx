@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { weddingConfig } from "@/config/wedding"
 import { Modal } from "@/components/ui/Modal"
+import { canStartGuestWrite, lookupInvitationAccess } from "@/lib/guest-recovery"
 
 export function RsvpCodeModal({
   open,
@@ -20,35 +21,25 @@ export function RsvpCodeModal({
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const entered = code.trim()
-    if (!entered) {
-      setError(copy.rsvpCodeError)
-      return
-    }
+    if (!canStartGuestWrite(pending)) return
 
     setPending(true)
     setError("")
-    const response = await fetch("/api/invitations/access", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code: code.trim() }),
-      cache: "no-store",
-    })
-    setPending(false)
-
-    if (!response.ok) {
-      setError(copy.rsvpCodeError)
-      return
+    try {
+      const result = await lookupInvitationAccess(code, copy.rsvpCodeError)
+      if (result.kind === "success") {
+        onClose()
+        router.push(`/convite/${encodeURIComponent(result.token)}`)
+        return
+      }
+      setError(result.message)
+    } catch {
+      setError(
+        "Não conseguimos consultar seu convite agora. Verifique sua conexão e tente novamente.",
+      )
+    } finally {
+      setPending(false)
     }
-
-    const data = (await response.json()) as { token?: string }
-    if (!data.token) {
-      setError(copy.rsvpCodeError)
-      return
-    }
-
-    onClose()
-    router.push(`/convite/${encodeURIComponent(data.token)}`)
   }
 
   return (

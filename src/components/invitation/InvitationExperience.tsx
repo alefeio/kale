@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { GuestSelector } from "@/components/invitation/GuestSelector"
 import { InvalidInvitation } from "@/components/invitation/InvalidInvitation"
+import { InvitationEventSchedule } from "@/components/invitation/InvitationEventSchedule"
 import { InvitationHeader } from "@/components/invitation/InvitationHeader"
 import { InvitationSkeleton } from "@/components/invitation/InvitationSkeleton"
 import { RSVPConfirmation } from "@/components/invitation/RSVPConfirmation"
@@ -154,12 +155,13 @@ export function InvitationExperience({ token }: { token: string }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg px-5 py-16 sm:py-20">
+    <div className="mx-auto w-full max-w-xl px-5 py-16 sm:py-20">
       <InvitationHeader greeting={invitation.greeting} label={invitation.label} />
+      <InvitationEventSchedule />
 
       {showForm ? (
         <form
-          className="mt-4"
+          className="mt-10"
           onSubmit={(event) => {
             event.preventDefault()
             confirm()

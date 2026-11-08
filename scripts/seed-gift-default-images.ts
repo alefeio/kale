@@ -2,17 +2,21 @@
  * Idempotent gift default-image seeder.
  *
  * Usage:
- *   npx tsx scripts/seed-gift-default-images.ts --dry-run
- *   npx tsx scripts/seed-gift-default-images.ts --apply
+ *   KALE_SEED_DATABASE_URL=postgresql://... npx tsx scripts/seed-gift-default-images.ts --dry-run
+ *   KALE_SEED_DATABASE_URL=postgresql://... npx tsx scripts/seed-gift-default-images.ts --apply
  *
- * Never run against Production without explicit authorization + verified backup.
+ * Never loads .env.local automatically. Never run against Production without explicit authorization.
  */
-import { config as loadEnv } from "dotenv"
+import { PrismaPg } from "@prisma/adapter-pg"
+import { PrismaClient } from "../src/generated/prisma/client"
 import { planGiftDefaultImages } from "../src/lib/gift-default-images"
 import { DEFAULT_GIFT_IMAGE_MANIFEST } from "../src/lib/gift-images"
-
-loadEnv({ path: ".env.local", quiet: true })
-loadEnv({ path: ".env", quiet: true })
+import {
+  assertSeedWriteAllowed,
+  redactSeedTarget,
+  resolveSeedDatabaseTarget,
+} from "../src/lib/seed-db-guard"
+import pg from "pg"
 
 function parseArgs(argv: string[]) {
   const apply = argv.includes("--apply")
@@ -24,39 +28,64 @@ function parseArgs(argv: string[]) {
 
 async function main() {
   const { dryRun } = parseArgs(process.argv.slice(2))
-  const { prisma } = await import("../src/lib/db/prisma")
-  const gifts = await prisma.gift.findMany({
-    where: { slug: { in: Object.keys(DEFAULT_GIFT_IMAGE_MANIFEST) } },
-    select: { id: true, slug: true, image: true },
-  })
-  const report = planGiftDefaultImages(gifts)
-
+  const target = resolveSeedDatabaseTarget()
   console.log(
     JSON.stringify(
       {
         mode: dryRun ? "dry-run" : "apply",
-        found: report.found.length,
-        updatable: report.updatable.length,
-        ignoredCustom: report.ignoredCustom.length,
-        missing: report.missing.length,
-        details: report,
+        target: redactSeedTarget(target),
       },
       null,
       2,
     ),
   )
 
-  if (!dryRun) {
-    for (const slug of report.updatable) {
-      const image = DEFAULT_GIFT_IMAGE_MANIFEST[slug as keyof typeof DEFAULT_GIFT_IMAGE_MANIFEST]
-      await prisma.gift.update({
-        where: { slug },
-        data: { image },
-      })
-    }
-  }
+  if (!dryRun) assertSeedWriteAllowed(target)
 
-  await prisma.$disconnect()
+  const pool = new pg.Pool({ connectionString: target.url })
+  const prisma = new PrismaClient({ adapter: new PrismaPg(pool) })
+
+  try {
+    const gifts = await prisma.gift.findMany({
+      where: { slug: { in: Object.keys(DEFAULT_GIFT_IMAGE_MANIFEST) } },
+      select: { id: true, slug: true, image: true },
+    })
+    const report = planGiftDefaultImages(gifts)
+
+    console.log(
+      JSON.stringify(
+        {
+          found: report.found.length,
+          updatable: report.updatable.length,
+          ignoredCustom: report.ignoredCustom.length,
+          missing: report.missing.length,
+          details: report,
+        },
+        null,
+        2,
+      ),
+    )
+
+    if (!dryRun) {
+      let updated = 0
+      for (const slug of report.updatable) {
+        const image = DEFAULT_GIFT_IMAGE_MANIFEST[slug as keyof typeof DEFAULT_GIFT_IMAGE_MANIFEST]
+        // Conditional write: only fill empty image at write time (concurrency-safe).
+        const result = await prisma.gift.updateMany({
+          where: {
+            slug,
+            OR: [{ image: null }, { image: "" }],
+          },
+          data: { image },
+        })
+        updated += result.count
+      }
+      console.log(JSON.stringify({ updated }, null, 2))
+    }
+  } finally {
+    await prisma.$disconnect()
+    await pool.end()
+  }
 }
 
 main().catch((error) => {

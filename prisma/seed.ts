@@ -61,23 +61,17 @@ const demoInvitations = [
 ]
 
 async function seedGiftCategories(prisma: Awaited<typeof import("../src/lib/db/prisma")>["prisma"]) {
-  for (const category of LEGACY_GIFT_CATEGORIES) {
-    await prisma.giftCatalogCategory.upsert({
-      where: { id: category.id },
-      update: {
-        name: category.name,
-        slug: category.slug,
-        sortOrder: category.sortOrder,
-      },
-      create: {
-        id: category.id,
-        name: category.name,
-        slug: category.slug,
-        sortOrder: category.sortOrder,
-        active: true,
-      },
-    })
-  }
+  // Create-only: never overwrite admin customizations (name/description/order/active).
+  await prisma.giftCatalogCategory.createMany({
+    data: LEGACY_GIFT_CATEGORIES.map((category) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      sortOrder: category.sortOrder,
+      active: true,
+    })),
+    skipDuplicates: true,
+  })
 }
 
 async function seedGifts(prisma: Awaited<typeof import("../src/lib/db/prisma")>["prisma"]) {

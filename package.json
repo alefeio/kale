@@ -14,6 +14,7 @@
     "db:seed": "prisma db seed",
     "db:seed:gift-images:dry-run": "tsx scripts/seed-gift-default-images.ts --dry-run",
     "db:seed:gift-images:apply": "tsx scripts/seed-gift-default-images.ts --apply",
+    "db:validate:gift-categories:isolated": "tsx scripts/validate-gift-categories-migration.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {

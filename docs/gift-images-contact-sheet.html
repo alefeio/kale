@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KALE — Folha de contato dos presentes</title>
+  <style>
+    body { margin: 0; font-family: Georgia, serif; background: #f7f3ea; color: #2f3928; }
+    h1 { text-align: center; font-weight: 500; padding: 2rem 1rem 0.5rem; }
+    p { text-align: center; color: #6e6252; margin: 0 1rem 2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.25rem; padding: 0 1.25rem 2rem; max-width: 1200px; margin: 0 auto; }
+    figure { margin: 0; background: #fff; border: 1px solid rgba(72,86,58,.12); }
+    img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+    figcaption { padding: .75rem .9rem 1rem; font-size: .9rem; }
+    code { font-family: ui-monospace, monospace; font-size: .75rem; color: #6e6252; }
+  </style>
+</head>
+<body>
+  <h1>Presentes — imagens padrão</h1>
+  <p>18 fotos WebP 4:3 para revisão visual. Manifesto em <code>src/lib/gift-images.ts</code>.</p>
+  <div class="grid" id="grid"></div>
+  <script>
+    const items = [
+      ["jogo-de-pratos","Jogo de pratos"],
+      ["jogo-de-copos","Jogo de copos"],
+      ["jogo-de-canecas","Jogo de canecas"],
+      ["jogo-de-talher","Jogo de talher"],
+      ["tabua-de-cortar","Tábua de cortar"],
+      ["potes-de-mantimentos","Potes de mantimentos"],
+      ["porta-temperos","Porta temperos"],
+      ["jarras-para-agua","Jarras para água"],
+      ["tigelas-porcelana","Tigelas porcelana"],
+      ["jogo-de-panelas","Jogo de panelas"],
+      ["jogo-americano","Jogo americano"],
+      ["toalhas-de-mesa-ou-centro-de-mesa","Toalhas de mesa ou centro de mesa"],
+      ["guardanapos","Guardanapos"],
+      ["toalhas-de-banho","Toalhas de banho"],
+      ["lixeiras","Lixeiras"],
+      ["jogo-de-cama-de-casal","Jogo de cama de casal"],
+      ["tapete-de-sala","Tapete de sala"],
+      ["tapete-de-banheiro","Tapete de banheiro"],
+    ];
+    const grid = document.getElementById("grid");
+    for (const [slug, name] of items) {
+      const figure = document.createElement("figure");
+      figure.innerHTML = `<img src="../public/images/gifts/${slug}.webp" alt="${name}" /><figcaption><strong>${name}</strong><br/><code>${slug}.webp</code></figcaption>`;
+      grid.appendChild(figure);
+    }
+  </script>
+</body>
+</html>

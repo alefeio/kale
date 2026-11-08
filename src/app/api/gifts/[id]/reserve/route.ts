@@ -2,8 +2,10 @@ import { Prisma } from "@/generated/prisma/client"
 import { connection } from "next/server"
 import { json } from "@/lib/api"
 import { toPublicGiftCategoryFromCatalog } from "@/lib/db/mappers"
+import { resolvePublicGiftImage } from "@/lib/gift-images"
 import { prisma } from "@/lib/db/prisma"
 import { readInvitationContext } from "@/lib/invitation-context"
+import { existingGiftImages } from "@/lib/media"
 import { invitationCodeSchema, publicReserveSchema, recognizedReserveSchema, recordIdSchema } from "@/lib/validation"
 
 const takenMessage =
@@ -72,17 +74,18 @@ export async function POST(
         where: { id: parsedId.data },
         select: {
           id: true,
+          slug: true,
           name: true,
           legacyCategory: true,
           description: true,
           image: true,
           active: true,
-          catalogCategory: { select: { slug: true, name: true } },
+          catalogCategory: { select: { slug: true, name: true, active: true } },
           reservation: { select: { id: true } },
         },
       })
 
-      if (!gift || !gift.active) return null
+      if (!gift || !gift.active || !gift.catalogCategory.active) return null
       if (gift.reservation) throw new Error("TAKEN")
 
       if (invitationId) {
@@ -114,7 +117,7 @@ export async function POST(
         category,
         categoryLabel: gift.catalogCategory.name,
         description: gift.description ?? undefined,
-        image: gift.image ?? "",
+        image: resolvePublicGiftImage(gift.slug, gift.image, existingGiftImages()),
         status: "reserved" as const,
       }
     })

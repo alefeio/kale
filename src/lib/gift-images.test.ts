@@ -18,7 +18,7 @@ test("remote https gift images are displayable even without local files", () => 
 })
 
 test("public image resolution prefers custom then default manifest", () => {
-  const available = ["/images/gifts/jogo-de-pratos.webp", "/images/gifts/custom.webp"]
+  const available = ["/images/gifts/jogo-de-pratos.webp"]
   assert.equal(
     resolvePublicGiftImage("jogo-de-pratos", "https://cdn.example.com/custom.webp", available),
     "https://cdn.example.com/custom.webp",

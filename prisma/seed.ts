@@ -1,11 +1,29 @@
 import { config as loadEnv } from "dotenv"
 import { generateInvitationCode } from "../src/lib/invitation-code"
 import { categoryIdForLegacyCode, LEGACY_GIFT_CATEGORIES } from "../src/lib/gift-categories"
+import {
+  assertSeedWriteAllowed,
+  redactSeedTarget,
+  resolveSeedDatabaseTarget,
+} from "../src/lib/seed-db-guard"
 
-loadEnv({ path: ".env.local", quiet: true })
-loadEnv({ path: ".env", quiet: true })
+/**
+ * Safety: never silently target Production via .env.local.
+ * Require KALE_SEED_DATABASE_URL (local isolated Postgres).
+ * Optional: KALE_SEED_LOAD_DOTENV=true loads .env only (still not .env.local).
+ */
+if (process.env.KALE_SEED_LOAD_DOTENV === "true") {
+  loadEnv({ path: ".env", quiet: true })
+}
 
 async function main() {
+  const target = resolveSeedDatabaseTarget()
+  assertSeedWriteAllowed(target)
+  console.log(JSON.stringify({ seedTarget: redactSeedTarget(target) }))
+
+  process.env.DATABASE_URL = target.url
+  process.env.DIRECT_URL = target.url
+
   const { prisma } = await import("../src/lib/db/prisma")
   await seedGiftCategories(prisma)
   await seedGifts(prisma)
@@ -13,8 +31,8 @@ async function main() {
   await prisma.$disconnect()
 }
 
-main().catch(() => {
-  console.error("Falha ao executar o seed.")
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : "Falha ao executar o seed.")
   process.exit(1)
 })
 

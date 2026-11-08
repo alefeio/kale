@@ -38,23 +38,19 @@ export const DEFAULT_GIFT_IMAGE_MANIFEST = {
 
 export type GiftImageSlug = keyof typeof DEFAULT_GIFT_IMAGE_MANIFEST
 
-/** Resolve custom DB image or default manifest path without requiring a production seed. */
+/**
+ * Resolve the public gift image without requiring a production seed.
+ * Custom DB values always win; missing files are handled by the UI fallback.
+ */
 export function resolvePublicGiftImage(
   slug: string,
   storedImage: string | null | undefined,
   availableLocalImages: Iterable<string> = [],
 ): string {
-  const available = new Set(availableLocalImages)
   const custom = storedImage?.trim() ?? ""
-  if (custom) {
-    if (isRemoteGiftImage(custom)) return custom
-    if (isLocalGiftImage(custom)) {
-      if (available.size === 0 || available.has(custom)) return custom
-    } else {
-      return custom
-    }
-  }
+  if (custom) return custom
 
+  const available = new Set(availableLocalImages)
   const fallback = DEFAULT_GIFT_IMAGE_MANIFEST[slug as GiftImageSlug]
   if (!fallback) return ""
   if (available.size === 0 || available.has(fallback)) return fallback

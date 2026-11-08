@@ -12,6 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "db:seed:gift-images:dry-run": "tsx scripts/seed-gift-default-images.ts --dry-run",
+    "db:seed:gift-images:apply": "tsx scripts/seed-gift-default-images.ts --apply",
     "db:studio": "prisma studio"
   },
   "dependencies": {

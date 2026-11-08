@@ -94,8 +94,15 @@ export const giftCategorySchema = z.enum(["KITCHEN", "TABLE", "HOME", "APPLIANCE
 
 export const giftInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  category: giftCategorySchema,
+  categoryId: recordIdSchema,
   sortOrder: z.number().int().min(0).max(9999),
   active: z.boolean(),
   description: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
+})
+
+export const giftCategoryInputSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
+  sortOrder: z.number().int().min(0).max(9999),
+  active: z.boolean(),
 })

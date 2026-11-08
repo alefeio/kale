@@ -1,6 +1,6 @@
 import { giftSeeds } from "@/data/gifts.mock"
 import { readJson, writeJson } from "@/lib/storage"
-import type { Gift } from "@/types/gift"
+import type { Gift, GiftCategoryOption } from "@/types/gift"
 import type { GiftService } from "@/services/gifts/gift-service"
 
 const STORAGE_KEY = "ka-gifts-v1"
@@ -16,9 +16,14 @@ function mergeGifts(): Gift[] {
   }))
 }
 
+function categoriesFrom(gifts: Gift[]): GiftCategoryOption[] {
+  return [...new Map(gifts.map((gift) => [gift.category, { slug: gift.category, label: gift.categoryLabel }])).values()]
+}
+
 export const mockGiftService: GiftService = {
   async getGifts() {
-    return mergeGifts()
+    const gifts = mergeGifts()
+    return { gifts, categories: categoriesFrom(gifts) }
   },
 
   async reserveGift(id, data) {

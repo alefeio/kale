@@ -1,11 +1,13 @@
 import { config as loadEnv } from "dotenv"
 import { generateInvitationCode } from "../src/lib/invitation-code"
+import { categoryIdForLegacyCode, LEGACY_GIFT_CATEGORIES } from "../src/lib/gift-categories"
 
 loadEnv({ path: ".env.local", quiet: true })
 loadEnv({ path: ".env", quiet: true })
 
 async function main() {
   const { prisma } = await import("../src/lib/db/prisma")
+  await seedGiftCategories(prisma)
   await seedGifts(prisma)
   await seedDemoInvitations(prisma)
   await prisma.$disconnect()
@@ -58,25 +60,49 @@ const demoInvitations = [
   },
 ]
 
+async function seedGiftCategories(prisma: Awaited<typeof import("../src/lib/db/prisma")>["prisma"]) {
+  for (const category of LEGACY_GIFT_CATEGORIES) {
+    await prisma.giftCatalogCategory.upsert({
+      where: { id: category.id },
+      update: {
+        name: category.name,
+        slug: category.slug,
+        sortOrder: category.sortOrder,
+      },
+      create: {
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        sortOrder: category.sortOrder,
+        active: true,
+      },
+    })
+  }
+}
+
 async function seedGifts(prisma: Awaited<typeof import("../src/lib/db/prisma")>["prisma"]) {
   for (const gift of gifts) {
-    await prisma.gift.upsert({
+    const categoryId = categoryIdForLegacyCode(gift.category)
+    const existing = await prisma.gift.findUnique({
       where: { slug: gift.slug },
-      update: {
+      select: { id: true },
+    })
+
+    if (existing) {
+      // Never wipe image/description/active/name/category for existing production rows.
+      continue
+    }
+
+    await prisma.gift.create({
+      data: {
+        slug: gift.slug,
         name: gift.name,
-        category: gift.category,
+        categoryId,
+        legacyCategory: gift.category,
         description: null,
         image: null,
         sortOrder: gift.sortOrder,
         active: true,
-      },
-      create: {
-        slug: gift.slug,
-        name: gift.name,
-        category: gift.category,
-        description: null,
-        image: null,
-        sortOrder: gift.sortOrder,
       },
     })
   }
@@ -113,4 +139,3 @@ async function seedDemoInvitations(prisma: Awaited<typeof import("../src/lib/db/
     })
   }
 }
-

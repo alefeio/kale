@@ -1,6 +1,17 @@
 "use client"
 
-import { Gift, LayoutDashboard, LogOut, Mail, Menu, Package, Settings, Ticket, X } from "lucide-react"
+import {
+  Gift,
+  LayoutDashboard,
+  LogOut,
+  Mail,
+  Menu,
+  Package,
+  Settings,
+  Tags,
+  Ticket,
+  X,
+} from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
@@ -10,6 +21,7 @@ const links = [
   { href: "/admin", label: "Visão geral", icon: LayoutDashboard },
   { href: "/admin/convites", label: "Convites", icon: Ticket },
   { href: "/admin/presentes", label: "Presentes", icon: Gift },
+  { href: "/admin/categorias", label: "Categorias", icon: Tags },
   { href: "/admin/reservas", label: "Reservas", icon: Package },
   { href: "/admin/mensagens", label: "Mensagens", icon: Mail },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },

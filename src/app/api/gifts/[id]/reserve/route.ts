@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma/client"
 import { connection } from "next/server"
 import { json } from "@/lib/api"
-import { toPublicGiftCategory } from "@/lib/db/mappers"
+import { toPublicGiftCategoryFromCatalog } from "@/lib/db/mappers"
 import { prisma } from "@/lib/db/prisma"
 import { readInvitationContext } from "@/lib/invitation-context"
 import { invitationCodeSchema, publicReserveSchema, recognizedReserveSchema, recordIdSchema } from "@/lib/validation"
@@ -73,10 +73,11 @@ export async function POST(
         select: {
           id: true,
           name: true,
-          category: true,
+          legacyCategory: true,
           description: true,
           image: true,
           active: true,
+          catalogCategory: { select: { slug: true, name: true } },
           reservation: { select: { id: true } },
         },
       })
@@ -102,10 +103,16 @@ export async function POST(
         },
       })
 
+      const category = toPublicGiftCategoryFromCatalog({
+        slug: gift.catalogCategory.slug,
+        legacyCategory: gift.legacyCategory,
+      })
+
       return {
         id: gift.id,
         name: gift.name,
-        category: toPublicGiftCategory(gift.category),
+        category,
+        categoryLabel: gift.catalogCategory.name,
         description: gift.description ?? undefined,
         image: gift.image ?? "",
         status: "reserved" as const,

@@ -9,21 +9,26 @@ import {
   loadGiftListView,
   type GiftListViewState,
 } from "@/lib/guest-recovery"
+import { isDisplayableGiftImage } from "@/lib/gift-images"
 import { giftService } from "@/services/gifts"
-import { giftCategories, giftCategoryLabels, type Gift, type GiftCategory } from "@/types/gift"
-
-const filters = ["todos", ...giftCategories] as const
-type Filter = (typeof filters)[number]
+import { giftCategoryLabels, type Gift, type GiftCategoryOption } from "@/types/gift"
 
 export function GiftList({ availableImages }: { availableImages: string[] }) {
   const [view, setView] = useState<GiftListViewState>({ status: "loading" })
-  const [filter, setFilter] = useState<Filter>("todos")
+  const [categories, setCategories] = useState<GiftCategoryOption[]>([])
+  const [filter, setFilter] = useState<string>("todos")
   const [selected, setSelected] = useState<Gift | null>(null)
   const [freshId, setFreshId] = useState<string | null>(null)
   const requestId = useRef(0)
   const { copy } = weddingConfig
-  const readyImages = useMemo(() => new Set(availableImages), [availableImages])
+  const readyImages = useMemo(() => availableImages, [availableImages])
   const gifts = view.status === "loading" ? null : view.gifts
+  const filters = useMemo(() => ["todos", ...categories.map((item) => item.slug)], [categories])
+  const labelBySlug = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const item of categories) map.set(item.slug, item.label)
+    return map
+  }, [categories])
 
   useLayoutEffect(() => {
     return () => setSelected(null)
@@ -31,10 +36,19 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
 
   useEffect(() => {
     const id = ++requestId.current
-    void loadGiftListView(() => giftService.getGifts()).then((next) => {
-      if (id !== requestId.current) return
-      setView(next)
-    })
+    void giftService
+      .getGifts()
+      .then(async (catalog) => {
+        if (id !== requestId.current) return
+        setCategories(catalog.categories)
+        setView(await loadGiftListView(async () => catalog.gifts))
+      })
+      .catch(async () => {
+        if (id !== requestId.current) return
+        setView(await loadGiftListView(async () => {
+          throw new Error("gift-load-failed")
+        }))
+      })
     return () => {
       requestId.current += 1
     }
@@ -43,9 +57,17 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
   async function reload(previous: Gift[] | null) {
     const id = ++requestId.current
     if (!previous) setView({ status: "loading" })
-    const next = await loadGiftListView(() => giftService.getGifts(), previous)
-    if (id !== requestId.current) return
-    setView(next)
+    try {
+      const catalog = await giftService.getGifts()
+      if (id !== requestId.current) return
+      setCategories(catalog.categories)
+      setView(giftListFromItems(catalog.gifts))
+    } catch {
+      if (id !== requestId.current) return
+      setView(await loadGiftListView(async () => {
+        throw new Error("gift-load-failed")
+      }, previous))
+    }
   }
 
   const visible = (gifts ?? []).filter((gift) => filter === "todos" || gift.category === filter)
@@ -73,7 +95,10 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
         <div className="gift-filters mt-12" role="group" aria-label="Categorias">
           {filters.map((item) => {
             const selectedFilter = filter === item
-            const label = item === "todos" ? "Todos" : giftCategoryLabels[item as GiftCategory]
+            const label =
+              item === "todos"
+                ? "Todos"
+                : labelBySlug.get(item) ?? giftCategoryLabels[item] ?? item
             return (
               <button
                 key={item}
@@ -125,7 +150,7 @@ export function GiftList({ availableImages }: { availableImages: string[] }) {
               <GiftCard
                 key={gift.id}
                 gift={gift}
-                imageReady={readyImages.has(gift.image)}
+                imageReady={isDisplayableGiftImage(gift.image, readyImages)}
                 freshlyReserved={freshId === gift.id}
                 onReserve={setSelected}
               />

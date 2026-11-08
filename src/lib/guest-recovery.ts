@@ -130,11 +130,13 @@ export async function loadInvitationView(
 }
 
 export async function loadGiftListView(
-  getGifts: () => Promise<Gift[]>,
+  getGifts: () => Promise<Gift[] | { gifts: Gift[] }>,
   previous: Gift[] | null = null,
 ): Promise<GiftListViewState> {
   try {
-    return giftListFromItems(await getGifts())
+    const payload = await getGifts()
+    const gifts = Array.isArray(payload) ? payload : payload.gifts
+    return giftListFromItems(gifts)
   } catch {
     return giftListLoadFailure(previous)
   }

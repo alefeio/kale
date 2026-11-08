@@ -12,9 +12,13 @@ export function escapeCsvField(value: string, delimiter = ";"): string {
   return neutralized
 }
 
-/** Prefix values that Excel may treat as formulas. */
+/**
+ * Prefix values that Excel/LibreOffice may treat as formulas.
+ * Leading spaces, tabs and control characters before operators are also neutralized.
+ */
 export function neutralizeCsvFormula(value: string): string {
-  if (/^[=+\-@]/.test(value) || value.startsWith("\t") || value.startsWith("\r")) {
+  const withoutLeadingNoise = value.replace(/^[\s\u0000-\u001f\u007f\u00a0\u2000-\u200f\u2028-\u202f]+/u, "")
+  if (/^[=+\-@]/.test(withoutLeadingNoise)) {
     return `'${value}`
   }
   return value

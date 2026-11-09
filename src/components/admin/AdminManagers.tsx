@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import {
   releaseReservation,
   removeGift,
@@ -35,10 +36,28 @@ type GiftItem = {
   imageSource: GiftImageSource
 }
 
+type GiftPhotoState = {
+  storedImage: string
+  displayImage: string
+  defaultImage: string
+  imageSource: GiftImageSource
+  preview: string
+}
+
 function imageSourceLabel(source: GiftImageSource) {
   if (source === "custom") return "Imagem personalizada"
   if (source === "default") return "Imagem padrão"
   return "Sem foto"
+}
+
+function photoStateFromGift(gift: GiftItem): GiftPhotoState {
+  return {
+    storedImage: gift.storedImage,
+    displayImage: gift.displayImage,
+    defaultImage: gift.defaultImage,
+    imageSource: gift.imageSource,
+    preview: gift.displayImage,
+  }
 }
 
 export function GiftManager({
@@ -48,64 +67,97 @@ export function GiftManager({
   gifts: GiftItem[]
   categories: CategoryOption[]
 }) {
+  const router = useRouter()
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const [pending, startTransition] = useTransition()
-  const [previews, setPreviews] = useState<Record<string, string>>({})
-  const [previewSources, setPreviewSources] = useState<Record<string, GiftImageSource>>({})
+  const [photoState, setPhotoState] = useState<Record<string, GiftPhotoState>>(() =>
+    Object.fromEntries(gifts.map((gift) => [gift.id, photoStateFromGift(gift)])),
+  )
   const [uploadingId, setUploadingId] = useState<string | null>(null)
-  const [objectUrls, setObjectUrls] = useState<Record<string, string>>({})
+  const objectUrlsRef = useRef<Record<string, string>>({})
   const activeCategories = categories.filter((category) => category.active)
   const selectable = activeCategories.length > 0 ? activeCategories : categories
 
   useEffect(() => {
+    setPhotoState((current) => {
+      const next = { ...current }
+      for (const gift of gifts) {
+        if (!next[gift.id] || !objectUrlsRef.current[gift.id]) {
+          next[gift.id] = photoStateFromGift(gift)
+        }
+      }
+      return next
+    })
+  }, [gifts])
+
+  useEffect(() => {
     return () => {
-      for (const url of Object.values(objectUrls)) URL.revokeObjectURL(url)
+      for (const url of Object.values(objectUrlsRef.current)) URL.revokeObjectURL(url)
+      objectUrlsRef.current = {}
     }
-  }, [objectUrls])
+  }, [])
 
   function finish(response: { ok: boolean; message?: string; error?: string }) {
     if (!response.ok) setError(response.error ?? "Não foi possível salvar.")
     else setMessage(response.message ?? "Presente atualizado.")
   }
 
+  function clearObjectUrl(giftId: string) {
+    const active = objectUrlsRef.current[giftId]
+    if (!active) return
+    URL.revokeObjectURL(active)
+    delete objectUrlsRef.current[giftId]
+  }
+
   function onPhoto(gift: GiftItem, file: File | null) {
     if (!file || uploadingId) return
+    const saved = photoState[gift.id] ?? photoStateFromGift(gift)
     setUploadingId(gift.id)
     setMessage("")
     setError("")
+    clearObjectUrl(gift.id)
     const objectUrl = URL.createObjectURL(file)
-    setObjectUrls((current) => {
-      const previous = current[gift.id]
-      if (previous) URL.revokeObjectURL(previous)
-      return { ...current, [gift.id]: objectUrl }
-    })
-    setPreviews((current) => ({ ...current, [gift.id]: objectUrl }))
-    setPreviewSources((current) => ({ ...current, [gift.id]: "custom" }))
+    objectUrlsRef.current[gift.id] = objectUrl
+    setPhotoState((current) => ({
+      ...current,
+      [gift.id]: {
+        ...saved,
+        preview: objectUrl,
+        imageSource: "custom",
+      },
+    }))
     const body = new FormData()
     body.set("giftId", gift.id)
     body.set("file", file)
     startTransition(async () => {
       const response = await uploadGiftImage(body)
       setUploadingId(null)
-      setObjectUrls((current) => {
-        const active = current[gift.id]
-        if (active) URL.revokeObjectURL(active)
-        const next = { ...current }
-        delete next[gift.id]
-        return next
-      })
+      clearObjectUrl(gift.id)
       if (!response.ok) {
-        setPreviews((current) => ({ ...current, [gift.id]: gift.displayImage }))
-        setPreviewSources((current) => ({ ...current, [gift.id]: gift.imageSource }))
+        setPhotoState((current) => ({
+          ...current,
+          [gift.id]: {
+            ...saved,
+            preview: saved.displayImage,
+          },
+        }))
         setError(response.error ?? "Não foi possível enviar a imagem.")
         return
       }
+      const url = response.url ?? saved.displayImage
+      setPhotoState((current) => ({
+        ...current,
+        [gift.id]: {
+          storedImage: url,
+          displayImage: url,
+          defaultImage: saved.defaultImage,
+          imageSource: "custom",
+          preview: url,
+        },
+      }))
       setMessage(response.message ?? "Foto atualizada.")
-      if (response.url) {
-        setPreviews((current) => ({ ...current, [gift.id]: response.url! }))
-        setPreviewSources((current) => ({ ...current, [gift.id]: "custom" }))
-      }
+      router.refresh()
     })
   }
 
@@ -167,8 +219,7 @@ export function GiftManager({
 
       <ul className="flex flex-col gap-4">
         {gifts.map((gift) => {
-          const preview = previews[gift.id] ?? gift.displayImage
-          const source = previewSources[gift.id] ?? gift.imageSource
+          const photo = photoState[gift.id] ?? photoStateFromGift(gift)
           return (
             <li key={gift.id}>
               <form
@@ -195,9 +246,9 @@ export function GiftManager({
               >
                 <div className="sm:col-span-2">
                   <div className="relative aspect-[4/3] max-w-sm overflow-hidden bg-cream">
-                    {preview ? (
+                    {photo.preview ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={preview} alt={gift.name} className="h-full w-full object-cover" />
+                      <img src={photo.preview} alt={gift.name} className="h-full w-full object-cover" />
                     ) : (
                       <p className="flex h-full items-center justify-center text-sm text-brown">Sem foto</p>
                     )}
@@ -205,10 +256,14 @@ export function GiftManager({
                       <p className="absolute inset-x-0 bottom-0 bg-ink/55 px-3 py-2 text-xs text-ivory">Enviando foto…</p>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-sm text-brown">{imageSourceLabel(source)}</p>
+                  <p className="mt-2 text-sm text-brown">{imageSourceLabel(photo.imageSource)}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <label className="btn btn-secondary cursor-pointer">
-                      {uploadingId === gift.id ? "Enviando..." : gift.storedImage ? "Substituir foto" : "Enviar foto"}
+                      {uploadingId === gift.id
+                        ? "Enviando..."
+                        : photo.storedImage
+                          ? "Substituir foto"
+                          : "Enviar foto"}
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
@@ -221,24 +276,31 @@ export function GiftManager({
                         }}
                       />
                     </label>
-                    {gift.storedImage ? (
+                    {photo.storedImage ? (
                       <button
                         type="button"
                         className="btn btn-ghost"
                         disabled={pending || uploadingId !== null}
                         onClick={() => {
+                          const saved = photoState[gift.id] ?? photoStateFromGift(gift)
                           setMessage("")
                           setError("")
                           startTransition(async () => {
                             const response = await removeGiftImage(gift.id)
                             finish(response)
                             if (!response.ok) return
-                            const restored = gift.defaultImage
-                            setPreviews((current) => ({ ...current, [gift.id]: restored }))
-                            setPreviewSources((current) => ({
+                            const restored = saved.defaultImage
+                            setPhotoState((current) => ({
                               ...current,
-                              [gift.id]: restored ? "default" : "none",
+                              [gift.id]: {
+                                storedImage: "",
+                                displayImage: restored,
+                                defaultImage: saved.defaultImage,
+                                imageSource: restored ? "default" : "none",
+                                preview: restored,
+                              },
                             }))
+                            router.refresh()
                           })
                         }}
                       >

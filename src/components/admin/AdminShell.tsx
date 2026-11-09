@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  ClipboardCheck,
   Gift,
   LayoutDashboard,
   LogOut,
@@ -20,6 +21,7 @@ import { authClient } from "@/lib/auth-client"
 const links = [
   { href: "/admin", label: "Visão geral", icon: LayoutDashboard },
   { href: "/admin/convites", label: "Convites", icon: Ticket },
+  { href: "/admin/presencas", label: "Presenças", icon: ClipboardCheck },
   { href: "/admin/presentes", label: "Presentes", icon: Gift },
   { href: "/admin/categorias", label: "Categorias", icon: Tags },
   { href: "/admin/reservas", label: "Reservas", icon: Package },

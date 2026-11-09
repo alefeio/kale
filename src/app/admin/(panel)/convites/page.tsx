@@ -5,7 +5,13 @@ import { CreateInvitationForm } from "@/components/admin/CreateInvitationForm"
 import { InvitationCopyButton } from "@/components/admin/InvitationCopyButton"
 import { InvitationWhatsAppShare } from "@/components/admin/InvitationWhatsAppShare"
 import { requireAdmin } from "@/lib/admin"
+import { formatAttendanceDate } from "@/lib/attendance"
 import { invitationShareText, invitationUrl } from "@/lib/invitation-link"
+import {
+  invitationVisitViewState,
+  isViewedWithoutResponse,
+  summarizeInvitationVisits,
+} from "@/lib/invitation-visits"
 import { deriveAttendanceStatus } from "@/lib/db/mappers"
 import { prisma } from "@/lib/db/prisma"
 import { getResolvedWeddingSettings } from "@/services/wedding-settings"
@@ -16,6 +22,12 @@ const statusLabel = {
   declined: "Não irá",
 } as const
 
+const dateFormat = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: "America/Belem",
+})
+
 function guestLabel(attending: boolean | null) {
   if (attending === null) return "Pendente"
   return attending ? "Confirmado" : "Não irá"
@@ -24,12 +36,13 @@ function guestLabel(attending: boolean | null) {
 export default async function InvitationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; view?: string }>
 }) {
   await requireAdmin()
-  const { q = "" } = await searchParams
+  const { q = "", view = "all" } = await searchParams
   const site = await getResolvedWeddingSettings()
   const term = q.trim()
+  const viewFilter = view === "viewed-pending" ? "viewed-pending" : "all"
   const invitations = await prisma.invitation.findMany({
     where: term
       ? {
@@ -52,30 +65,57 @@ export default async function InvitationsPage({
         select: { name: true, attending: true, whatsapp: true },
       },
       response: { select: { respondedAt: true } },
+      visits: {
+        orderBy: { visitedAt: "desc" },
+        select: { visitedAt: true },
+      },
     },
   })
+
+  const rows = invitations
+    .map((invitation) => {
+      const summary = summarizeInvitationVisits(invitation.visits)
+      const status = deriveAttendanceStatus(invitation.guests)
+      return {
+        invitation,
+        summary,
+        status,
+        viewState: invitationVisitViewState(summary.count),
+        viewedPending: isViewedWithoutResponse({
+          visitCount: summary.count,
+          guests: invitation.guests,
+        }),
+      }
+    })
+    .filter((row) => (viewFilter === "viewed-pending" ? row.viewedPending : true))
 
   return (
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="font-serif text-4xl text-olive-dark sm:text-5xl">Convites</h1>
-        <form className="mt-5 flex flex-col gap-3 sm:flex-row" action="/admin/convites">
-          <label className="flex-1 text-sm text-brown">
+        <form className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap" action="/admin/convites">
+          <label className="min-w-[16rem] flex-1 text-sm text-brown">
             Buscar por nome, identificação ou código
             <input name="q" defaultValue={term} className="field mt-2" />
           </label>
+          <label className="text-sm text-brown">
+            Visualização
+            <select name="view" defaultValue={viewFilter} className="field mt-2">
+              <option value="all">Todos</option>
+              <option value="viewed-pending">Visualizados sem resposta</option>
+            </select>
+          </label>
           <button type="submit" className="btn btn-secondary self-end">
-            Buscar
+            Filtrar
           </button>
         </form>
       </div>
 
-      {invitations.length === 0 ? (
-        <p className="text-brown">Nenhum convite cadastrado ainda.</p>
+      {rows.length === 0 ? (
+        <p className="text-brown">Nenhum convite encontrado para este filtro.</p>
       ) : (
         <ul className="flex flex-col gap-4">
-          {invitations.map((invitation) => {
-            const status = deriveAttendanceStatus(invitation.guests)
+          {rows.map(({ invitation, summary, status, viewState }) => {
             const url = invitationUrl(invitation.token)
             return (
               <li key={invitation.id} className="border border-olive/10 bg-white p-4">
@@ -89,6 +129,15 @@ export default async function InvitationsPage({
                     </p>
                     <p className="mt-1 text-sm text-brown">
                       Resposta: {invitation.response ? "Recebida" : "Ainda não"}
+                    </p>
+                    <p className="mt-1 text-sm text-brown">
+                      Acesso: {viewState === "never" ? "Nunca visualizado" : "Visualizado"}
+                      {summary.count > 0
+                        ? ` · ${summary.count} visita${summary.count === 1 ? "" : "s"} · última ${formatAttendanceDate(summary.lastVisitedAt, dateFormat)}`
+                        : ""}
+                    </p>
+                    <p className="mt-1 text-xs text-brown/80">
+                      A visita refere-se à abertura do convite, não a uma pessoa específica da família.
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

@@ -106,6 +106,8 @@ export const weddingConfig = {
     invitationEdit: "Alterar confirmação",
     invitationInvalidTitle: "Não encontramos este convite.",
     invitationInvalidText: "Confira o link enviado junto ao seu convite.",
+    invitationVisitPrivacyNote:
+      "Registramos a abertura deste convite apenas para organização do casamento, sem identificar dispositivos.",
     giftReserveTitle: "Que carinho! ❤️",
     giftReserveText: "Deseja reservar este presente para Karen e Alexandre?",
     giftReserveAction: "Reservar presente",

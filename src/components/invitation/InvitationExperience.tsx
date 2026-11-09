@@ -15,6 +15,8 @@ import {
   RSVP_UNKNOWN_OUTCOME_HINT,
   type InvitationViewState,
 } from "@/lib/guest-recovery"
+import { recordInvitationVisit } from "@/lib/invitation-visit-client"
+import { shouldRecordInvitationVisit } from "@/lib/invitation-visits"
 import { rsvpService } from "@/services/rsvp"
 import type { Invitation } from "@/types/invitation"
 
@@ -31,6 +33,7 @@ export function InvitationExperience({ token }: { token: string }) {
   const [error, setError] = useState("")
   const [needsRefresh, setNeedsRefresh] = useState(false)
   const requestId = useRef(0)
+  const visitAttempted = useRef(false)
   const { copy } = weddingConfig
 
   function applyLoaded(next: InvitationViewState) {
@@ -44,6 +47,7 @@ export function InvitationExperience({ token }: { token: string }) {
 
   useEffect(() => {
     const id = ++requestId.current
+    visitAttempted.current = false
     void loadInvitationView(token, (value) => rsvpService.getInvitationByToken(value)).then((next) => {
       if (id !== requestId.current) return
       applyLoaded(next)
@@ -54,6 +58,29 @@ export function InvitationExperience({ token }: { token: string }) {
       requestId.current += 1
     }
   }, [token])
+
+  useEffect(() => {
+    if (view.status !== "success") return
+    if (visitAttempted.current) return
+
+    function maybeRecord() {
+      if (visitAttempted.current) return
+      if (
+        !shouldRecordInvitationVisit({
+          viewStatus: "success",
+          visibilityState: document.visibilityState,
+        })
+      ) {
+        return
+      }
+      visitAttempted.current = true
+      void recordInvitationVisit(token)
+    }
+
+    maybeRecord()
+    document.addEventListener("visibilitychange", maybeRecord)
+    return () => document.removeEventListener("visibilitychange", maybeRecord)
+  }, [token, view.status])
 
   async function retryLoad() {
     const id = ++requestId.current
@@ -225,6 +252,8 @@ export function InvitationExperience({ token }: { token: string }) {
           onEdit={() => setEditing(true)}
         />
       )}
+
+      <p className="mt-12 text-xs leading-5 text-brown/80">{copy.invitationVisitPrivacyNote}</p>
     </div>
   )
 }

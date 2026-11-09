@@ -2,20 +2,34 @@ import { prisma } from "@/lib/db/prisma"
 
 export const instant = false
 import { requireAdmin } from "@/lib/admin"
+import { isViewedWithoutResponse } from "@/lib/invitation-visits"
 
 export default async function DashboardPage() {
   await requireAdmin()
-  const [invitations, guests, confirmed, declined, pending, availableGifts, reservedGifts, messages] = await Promise.all([
-    prisma.invitation.count(),
-    prisma.guest.count(),
-    prisma.guest.count({ where: { attending: true } }),
-    prisma.guest.count({ where: { attending: false } }),
-    prisma.guest.count({ where: { attending: null } }),
-    prisma.gift.count({ where: { active: true, reservation: { is: null } } }),
-    prisma.giftReservation.count(),
-    prisma.message.count(),
-  ])
+  const [invitations, guests, confirmed, declined, pending, availableGifts, reservedGifts, messages, visitRows] =
+    await Promise.all([
+      prisma.invitation.count(),
+      prisma.guest.count(),
+      prisma.guest.count({ where: { attending: true } }),
+      prisma.guest.count({ where: { attending: false } }),
+      prisma.guest.count({ where: { attending: null } }),
+      prisma.gift.count({ where: { active: true, reservation: { is: null } } }),
+      prisma.giftReservation.count(),
+      prisma.message.count(),
+      prisma.invitation.findMany({
+        select: {
+          id: true,
+          guests: { select: { attending: true } },
+          _count: { select: { visits: true } },
+        },
+      }),
+    ])
   const responded = confirmed + declined
+  const viewed = visitRows.filter((row) => row._count.visits > 0).length
+  const neverViewed = visitRows.length - viewed
+  const viewedPending = visitRows.filter((row) =>
+    isViewedWithoutResponse({ visitCount: row._count.visits, guests: row.guests }),
+  ).length
 
   const cards = [
     ["Total de convites", invitations],
@@ -23,6 +37,9 @@ export default async function DashboardPage() {
     ["Confirmados", confirmed],
     ["Não irão", declined],
     ["Pendentes", pending],
+    ["Convites visualizados", viewed],
+    ["Convites ainda não visualizados", neverViewed],
+    ["Visualizados e pendentes", viewedPending],
     ["Presentes disponíveis", availableGifts],
     ["Presentes reservados", reservedGifts],
     ["Mensagens recebidas", messages],
@@ -36,6 +53,9 @@ export default async function DashboardPage() {
         <span className="mt-1 block">
           {responded} de {guests} convidados responderam
         </span>
+      </p>
+      <p className="mt-2 text-sm text-brown">
+        Indicadores de visualização contam aberturas registradas do convite, não pessoas únicas.
       </p>
       <ul className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(([label, value]) => (

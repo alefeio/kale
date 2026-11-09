@@ -41,12 +41,28 @@ model Invitation {
   guests           Guest[]
   response         RsvpResponse?
   giftReservations GiftReservation[]
+  visits           InvitationVisit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([token])
   @@index([code])
+}
+
+/// Registered successful openings of a private invitation in a real browser session.
+/// Retention: keep until after the wedding for organization; no automatic deletion during the ceremony window.
+/// Does not store IP, geo, fingerprint, device identity or user-agent.
+model InvitationVisit {
+  id           String   @id @default(cuid())
+  invitationId String
+  visitedAt    DateTime @default(now())
+  /// Client+server idempotency key (one recorded visit per browser tab/session window).
+  eventKey     String   @unique
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@index([invitationId, visitedAt])
 }
 
 model Guest {

@@ -38,6 +38,15 @@ export const DEFAULT_GIFT_IMAGE_MANIFEST = {
 
 export type GiftImageSlug = keyof typeof DEFAULT_GIFT_IMAGE_MANIFEST
 
+export type GiftImageSource = "custom" | "default" | "none"
+
+export type GiftImagePresentation = {
+  storedImage: string
+  displayImage: string
+  defaultImage: string
+  imageSource: GiftImageSource
+}
+
 /**
  * Resolve the public gift image without requiring a production seed.
  * Custom DB values always win; missing files are handled by the UI fallback.
@@ -47,12 +56,46 @@ export function resolvePublicGiftImage(
   storedImage: string | null | undefined,
   availableLocalImages: Iterable<string> = [],
 ): string {
-  const custom = storedImage?.trim() ?? ""
-  if (custom) return custom
+  return resolveGiftImagePresentation(slug, storedImage, availableLocalImages).displayImage
+}
 
+/**
+ * Shared presentation for public catalog and Admin previews.
+ * Does not write default manifest paths into the database.
+ */
+export function resolveGiftImagePresentation(
+  slug: string,
+  storedImage: string | null | undefined,
+  availableLocalImages: Iterable<string> = [],
+): GiftImagePresentation {
   const available = new Set(availableLocalImages)
   const fallback = DEFAULT_GIFT_IMAGE_MANIFEST[slug as GiftImageSlug]
-  if (!fallback) return ""
-  if (available.size === 0 || available.has(fallback)) return fallback
-  return ""
+  const defaultImage =
+    fallback && (available.size === 0 || available.has(fallback)) ? fallback : ""
+
+  const custom = storedImage?.trim() ?? ""
+  if (custom) {
+    return {
+      storedImage: custom,
+      displayImage: custom,
+      defaultImage,
+      imageSource: "custom",
+    }
+  }
+
+  if (defaultImage) {
+    return {
+      storedImage: "",
+      displayImage: defaultImage,
+      defaultImage,
+      imageSource: "default",
+    }
+  }
+
+  return {
+    storedImage: "",
+    displayImage: "",
+    defaultImage: "",
+    imageSource: "none",
+  }
 }

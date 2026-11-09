@@ -22,5 +22,7 @@ Não são armazenados IP, geolocalização, fingerprint, identidade de dispositi
 ## Deduplicação
 
 - Uma visita registrada por aba/sessão de navegador em janela de 15 minutos.
-- Recarregamentos imediatos reutilizam a mesma `eventKey`.
+- Recarregamentos imediatos reutilizam a mesma chave de cliente; o servidor grava `invitationId:clientKey`.
 - A unicidade de `eventKey` no banco garante idempotência mesmo com requisições duplicadas.
+- A prevenção de bots é de melhor esforço: um navegador automatizado que execute JavaScript ainda pode registrar visitas.
+- Aberturas feitas pela própria organização ao testar links também podem ser contadas.

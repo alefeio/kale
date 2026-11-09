@@ -2,12 +2,21 @@ import { connection } from "next/server"
 import { Prisma } from "@/generated/prisma/client"
 import { failure, json } from "@/lib/api"
 import { prisma } from "@/lib/db/prisma"
-import { INVITATION_VISIT_HOURLY_LIMIT } from "@/lib/invitation-visits"
+import {
+  INVITATION_VISIT_HOURLY_LIMIT,
+  isValidVisitClientKey,
+  namespaceVisitEventKey,
+} from "@/lib/invitation-visits"
 import { invitationTokenSchema } from "@/lib/validation"
 import { z } from "zod"
 
 const bodySchema = z.object({
-  eventKey: z.string().trim().min(8).max(128),
+  eventKey: z
+    .string()
+    .trim()
+    .min(8)
+    .max(128)
+    .refine(isValidVisitClientKey, "eventKey inválido"),
 })
 
 export async function POST(
@@ -38,6 +47,13 @@ export async function POST(
       return failure(404, "Não encontramos este convite.")
     }
 
+    const eventKey = namespaceVisitEventKey(invitation.id, parsedBody.data.eventKey)
+    const existing = await prisma.invitationVisit.findUnique({
+      where: { eventKey },
+      select: { id: true },
+    })
+    if (existing) return json({ ok: true })
+
     const since = new Date(Date.now() - 60 * 60 * 1000)
     const recent = await prisma.invitationVisit.count({
       where: { invitationId: invitation.id, visitedAt: { gte: since } },
@@ -50,7 +66,7 @@ export async function POST(
       await prisma.invitationVisit.create({
         data: {
           invitationId: invitation.id,
-          eventKey: parsedBody.data.eventKey,
+          eventKey,
         },
       })
     } catch (error) {

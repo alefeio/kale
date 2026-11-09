@@ -1,5 +1,7 @@
 export const INVITATION_VISIT_WINDOW_MS = 15 * 60 * 1000
 export const INVITATION_VISIT_HOURLY_LIMIT = 30
+export const INVITATION_VISIT_HISTORY_LIMIT = 20
+export const INVITATION_VISIT_CLIENT_KEY_PATTERN = /^[A-Za-z0-9_-]{8,128}$/
 
 export type InvitationVisitSummary = {
   count: number
@@ -22,6 +24,22 @@ export function summarizeInvitationVisits(
     if (visit.visitedAt > last) last = visit.visitedAt
   }
   return { count: visits.length, firstVisitedAt: first, lastVisitedAt: last }
+}
+
+/** Build totals from aggregate queries; history length must not affect count. */
+export function invitationVisitSummaryFromAggregates(input: {
+  count: number
+  firstVisitedAt: Date | null
+  lastVisitedAt: Date | null
+}): InvitationVisitSummary {
+  if (input.count <= 0) {
+    return { count: 0, firstVisitedAt: null, lastVisitedAt: null }
+  }
+  return {
+    count: input.count,
+    firstVisitedAt: input.firstVisitedAt,
+    lastVisitedAt: input.lastVisitedAt,
+  }
 }
 
 export function invitationVisitViewState(count: number): InvitationVisitViewState {
@@ -51,16 +69,32 @@ export function resolveClientVisitEventKey(
   createKey: () => string = () => crypto.randomUUID(),
   windowMs = INVITATION_VISIT_WINDOW_MS,
 ): ClientVisitWindowState {
-  if (previous && now - previous.startedAt < windowMs && previous.eventKey.trim()) {
+  if (
+    previous &&
+    now - previous.startedAt < windowMs &&
+    INVITATION_VISIT_CLIENT_KEY_PATTERN.test(previous.eventKey.trim())
+  ) {
     return previous
   }
   return { eventKey: createKey(), startedAt: now }
 }
 
+export function namespaceVisitEventKey(invitationId: string, clientKey: string) {
+  return `${invitationId}:${clientKey}`
+}
+
+export function isValidVisitClientKey(value: string) {
+  return INVITATION_VISIT_CLIENT_KEY_PATTERN.test(value.trim())
+}
+
 export function shouldRecordInvitationVisit(input: {
   viewStatus: "loading" | "success" | "not-found" | "error"
   visibilityState: DocumentVisibilityState | "visible" | "hidden" | "prerender"
+  routeToken: string
+  invitationToken?: string
 }) {
   if (input.viewStatus !== "success") return false
-  return input.visibilityState === "visible"
+  if (input.visibilityState !== "visible") return false
+  if (!input.invitationToken) return false
+  return input.invitationToken === input.routeToken
 }

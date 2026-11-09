@@ -61,14 +61,18 @@ export function InvitationExperience({ token }: { token: string }) {
 
   useEffect(() => {
     if (view.status !== "success") return
+    if (view.invitation.token !== token) return
     if (visitAttempted.current) return
 
     function maybeRecord() {
       if (visitAttempted.current) return
+      if (view.status !== "success") return
       if (
         !shouldRecordInvitationVisit({
-          viewStatus: "success",
+          viewStatus: view.status,
           visibilityState: document.visibilityState,
+          routeToken: token,
+          invitationToken: view.invitation.token,
         })
       ) {
         return
@@ -80,7 +84,7 @@ export function InvitationExperience({ token }: { token: string }) {
     maybeRecord()
     document.addEventListener("visibilitychange", maybeRecord)
     return () => document.removeEventListener("visibilitychange", maybeRecord)
-  }, [token, view.status])
+  }, [token, view])
 
   async function retryLoad() {
     const id = ++requestId.current

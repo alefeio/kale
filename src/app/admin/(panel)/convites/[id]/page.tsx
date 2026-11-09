@@ -5,7 +5,10 @@ import { InvitationEditor } from "@/components/admin/InvitationEditor"
 import { requireAdmin } from "@/lib/admin"
 import { formatAttendanceDate } from "@/lib/attendance"
 import { invitationShareText, invitationUrl } from "@/lib/invitation-link"
-import { summarizeInvitationVisits } from "@/lib/invitation-visits"
+import {
+  INVITATION_VISIT_HISTORY_LIMIT,
+  invitationVisitSummaryFromAggregates,
+} from "@/lib/invitation-visits"
 import { deriveAttendanceStatus } from "@/lib/db/mappers"
 import { prisma } from "@/lib/db/prisma"
 import { getResolvedWeddingSettings } from "@/services/wedding-settings"
@@ -38,17 +41,37 @@ export default async function InvitationPage({ params }: { params: Promise<{ id:
         orderBy: { sortOrder: "asc" },
         select: { id: true, name: true, whatsapp: true, attending: true },
       },
-      visits: {
-        orderBy: { visitedAt: "desc" },
-        take: 20,
-        select: { id: true, visitedAt: true },
-      },
+      _count: { select: { visits: true } },
     },
   })
   if (!invitation) notFound()
-  const site = await getResolvedWeddingSettings()
+
+  const [firstVisit, lastVisit, recentVisits, site] = await Promise.all([
+    prisma.invitationVisit.findFirst({
+      where: { invitationId: invitation.id },
+      orderBy: { visitedAt: "asc" },
+      select: { visitedAt: true },
+    }),
+    prisma.invitationVisit.findFirst({
+      where: { invitationId: invitation.id },
+      orderBy: { visitedAt: "desc" },
+      select: { visitedAt: true },
+    }),
+    prisma.invitationVisit.findMany({
+      where: { invitationId: invitation.id },
+      orderBy: { visitedAt: "desc" },
+      take: INVITATION_VISIT_HISTORY_LIMIT,
+      select: { id: true, visitedAt: true },
+    }),
+    getResolvedWeddingSettings(),
+  ])
+
   const url = invitationUrl(invitation.token)
-  const summary = summarizeInvitationVisits(invitation.visits)
+  const summary = invitationVisitSummaryFromAggregates({
+    count: invitation._count.visits,
+    firstVisitedAt: firstVisit?.visitedAt ?? null,
+    lastVisitedAt: lastVisit?.visitedAt ?? null,
+  })
   const status = deriveAttendanceStatus(invitation.guests)
 
   return (
@@ -64,6 +87,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ id:
         </h2>
         <p className="mt-2 text-sm text-brown">
           Visitas registradas da abertura do link. Em convites familiares, não identificamos qual pessoa abriu.
+          Aberturas feitas pela organização também podem aparecer.
         </p>
         <dl className="mt-5 grid gap-3 text-sm text-brown sm:grid-cols-3">
           <div>
@@ -83,9 +107,9 @@ export default async function InvitationPage({ params }: { params: Promise<{ id:
             <dd className="mt-1 font-serif text-xl text-olive-dark">{summary.count}</dd>
           </div>
         </dl>
-        {invitation.visits.length > 0 ? (
+        {recentVisits.length > 0 ? (
           <ul className="mt-6 flex flex-col gap-2 text-sm text-brown">
-            {invitation.visits.map((visit) => (
+            {recentVisits.map((visit) => (
               <li key={visit.id} className="flex justify-between gap-4 border-t border-olive/10 pt-2">
                 <span>Visita registrada</span>
                 <span>{formatAttendanceDate(visit.visitedAt, dateFormat)}</span>
@@ -95,6 +119,11 @@ export default async function InvitationPage({ params }: { params: Promise<{ id:
         ) : (
           <p className="mt-6 text-sm text-brown">Nenhuma visita registrada ainda.</p>
         )}
+        {summary.count > recentVisits.length ? (
+          <p className="mt-3 text-xs text-brown/80">
+            Histórico mostra as {INVITATION_VISIT_HISTORY_LIMIT} visitas mais recentes de {summary.count}.
+          </p>
+        ) : null}
       </section>
 
       <InvitationEditor

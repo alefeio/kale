@@ -8,12 +8,26 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Legacy enum retained for expand/contract compatibility with older app versions.
+/// New categories must use GiftCatalogCategory rows — never invent fake enum values.
 enum GiftCategory {
   KITCHEN
   TABLE
   HOME
   APPLIANCES
   BATH
+}
+
+model GiftCatalogCategory {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  gifts       Gift[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Invitation {
@@ -62,19 +76,25 @@ model RsvpResponse {
 }
 
 model Gift {
-  id          String       @id @default(cuid())
-  slug        String       @unique
-  name        String
-  category    GiftCategory
-  description String?
-  image       String?
-  sortOrder   Int          @default(0)
-  active      Boolean      @default(true)
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  name           String
+  /// Nullable legacy enum mirror for rollout safety. Prefer catalogCategory.
+  legacyCategory GiftCategory? @map("category")
+  categoryId     String
+  description    String?
+  image          String?
+  imagePublicId  String?
+  sortOrder      Int           @default(0)
+  active         Boolean       @default(true)
 
-  reservation GiftReservation?
+  catalogCategory GiftCatalogCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  reservation     GiftReservation?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
 }
 
 model GiftReservation {

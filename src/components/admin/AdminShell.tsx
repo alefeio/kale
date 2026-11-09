@@ -9,6 +9,7 @@ import {
   Menu,
   Package,
   Settings,
+  Tags,
   Ticket,
   X,
 } from "lucide-react"
@@ -22,6 +23,7 @@ const links = [
   { href: "/admin/convites", label: "Convites", icon: Ticket },
   { href: "/admin/presencas", label: "Presenças", icon: ClipboardCheck },
   { href: "/admin/presentes", label: "Presentes", icon: Gift },
+  { href: "/admin/categorias", label: "Categorias", icon: Tags },
   { href: "/admin/reservas", label: "Reservas", icon: Package },
   { href: "/admin/mensagens", label: "Mensagens", icon: Mail },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },

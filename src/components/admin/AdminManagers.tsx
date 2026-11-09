@@ -1,34 +1,77 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { releaseReservation, removeGift, removeMessage, saveGift } from "@/actions/admin"
+import {
+  releaseReservation,
+  removeGift,
+  removeGiftCategory,
+  removeGiftImage,
+  removeMessage,
+  saveGift,
+  saveGiftCategory,
+  uploadGiftImage,
+} from "@/actions/admin"
 
-const categories = [
-  { value: "TABLE", label: "Mesa" },
-  { value: "KITCHEN", label: "Cozinha" },
-  { value: "BATH", label: "Banho" },
-  { value: "HOME", label: "Casa" },
-  { value: "APPLIANCES", label: "Eletros" },
-] as const
+type CategoryOption = {
+  id: string
+  name: string
+  slug: string
+  active: boolean
+}
 
 type GiftItem = {
   id: string
   name: string
-  category: (typeof categories)[number]["value"]
+  categoryId: string
   sortOrder: number
   active: boolean
   reserved: boolean
   description: string
+  image: string
 }
 
-export function GiftManager({ gifts }: { gifts: GiftItem[] }) {
+export function GiftManager({
+  gifts,
+  categories,
+}: {
+  gifts: GiftItem[]
+  categories: CategoryOption[]
+}) {
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const [pending, startTransition] = useTransition()
+  const [previews, setPreviews] = useState<Record<string, string>>({})
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const activeCategories = categories.filter((category) => category.active)
+  const selectable = activeCategories.length > 0 ? activeCategories : categories
 
   function finish(response: { ok: boolean; message?: string; error?: string }) {
     if (!response.ok) setError(response.error ?? "Não foi possível salvar.")
     else setMessage(response.message ?? "Presente atualizado.")
+  }
+
+  function onPhoto(giftId: string, file: File | null, previousImage: string) {
+    if (!file || uploadingId) return
+    setUploadingId(giftId)
+    const objectUrl = URL.createObjectURL(file)
+    setPreviews((current) => ({ ...current, [giftId]: objectUrl }))
+    setError("")
+    const body = new FormData()
+    body.set("giftId", giftId)
+    body.set("file", file)
+    startTransition(async () => {
+      const response = await uploadGiftImage(body)
+      setUploadingId(null)
+      if (!response.ok) {
+        setPreviews((current) => ({ ...current, [giftId]: previousImage }))
+        URL.revokeObjectURL(objectUrl)
+        setError(response.error ?? "Não foi possível enviar a imagem.")
+        return
+      }
+      setMessage(response.message ?? "Foto atualizada.")
+      if (response.url) setPreviews((current) => ({ ...current, [giftId]: response.url! }))
+      URL.revokeObjectURL(objectUrl)
+    })
   }
 
   return (
@@ -45,7 +88,7 @@ export function GiftManager({ gifts }: { gifts: GiftItem[] }) {
           startTransition(async () => {
             const response = await saveGift({
               name: String(form.get("name") ?? ""),
-              category: String(form.get("category") ?? ""),
+              categoryId: String(form.get("categoryId") ?? ""),
               sortOrder: Number(form.get("sortOrder") ?? 0),
               active: form.get("active") === "on",
               description: String(form.get("description") ?? ""),
@@ -62,13 +105,17 @@ export function GiftManager({ gifts }: { gifts: GiftItem[] }) {
         </label>
         <label className="text-sm text-brown">
           Categoria
-          <select name="category" className="field mt-2" defaultValue="TABLE">
-            {categories.map((category) => (
-              <option key={category.value} value={category.value}>
-                {category.label}
+          <select name="categoryId" className="field mt-2" defaultValue={selectable[0]?.id}>
+            {selectable.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
               </option>
             ))}
           </select>
+        </label>
+        <label className="text-sm text-brown sm:col-span-2">
+          Descrição
+          <textarea name="description" rows={3} className="field mt-2" />
         </label>
         <label className="text-sm text-brown">
           Ordem
@@ -84,8 +131,199 @@ export function GiftManager({ gifts }: { gifts: GiftItem[] }) {
       </form>
 
       <ul className="flex flex-col gap-4">
-        {gifts.map((gift) => (
-          <li key={gift.id}>
+        {gifts.map((gift) => {
+          const preview = previews[gift.id] ?? gift.image
+          return (
+            <li key={gift.id}>
+              <form
+                className="grid gap-3 border border-olive/10 bg-white p-4 sm:grid-cols-2"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  const form = new FormData(event.currentTarget)
+                  setError("")
+                  startTransition(async () => {
+                    finish(
+                      await saveGift(
+                        {
+                          name: String(form.get("name") ?? ""),
+                          categoryId: String(form.get("categoryId") ?? ""),
+                          sortOrder: Number(form.get("sortOrder") ?? 0),
+                          active: form.get("active") === "on",
+                          description: String(form.get("description") ?? ""),
+                        },
+                        gift.id,
+                      ),
+                    )
+                  })
+                }}
+              >
+                <div className="sm:col-span-2">
+                  <div className="relative aspect-[4/3] max-w-sm overflow-hidden bg-cream">
+                    {preview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={preview} alt={gift.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <p className="flex h-full items-center justify-center text-sm text-brown">Sem foto</p>
+                    )}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <label className="btn btn-secondary cursor-pointer">
+                      {uploadingId === gift.id ? "Enviando..." : "Enviar foto"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        disabled={pending}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] ?? null
+                          event.target.value = ""
+                          onPhoto(gift.id, file, gift.image)
+                        }}
+                      />
+                    </label>
+                    {gift.image ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={pending}
+                        onClick={() => {
+                          setError("")
+                          startTransition(async () => {
+                            finish(await removeGiftImage(gift.id))
+                            setPreviews((current) => ({ ...current, [gift.id]: "" }))
+                          })
+                        }}
+                      >
+                        Remover foto
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <label className="text-sm text-brown">
+                  Nome
+                  <input name="name" defaultValue={gift.name} required className="field mt-2" />
+                </label>
+                <label className="text-sm text-brown">
+                  Categoria
+                  <select name="categoryId" defaultValue={gift.categoryId} className="field mt-2">
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                        {category.active ? "" : " (inativa)"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm text-brown sm:col-span-2">
+                  Descrição
+                  <textarea name="description" rows={3} defaultValue={gift.description} className="field mt-2" />
+                </label>
+                <label className="text-sm text-brown">
+                  Ordem
+                  <input name="sortOrder" type="number" min={0} defaultValue={gift.sortOrder} required className="field mt-2" />
+                </label>
+                <p className="self-end text-sm text-brown">Status: {gift.reserved ? "Reservado" : "Disponível"}</p>
+                <label className="flex min-h-11 items-center gap-3 text-sm text-brown">
+                  <input type="checkbox" name="active" defaultChecked={gift.active} />
+                  Ativo
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button type="submit" className="btn btn-secondary" disabled={pending}>
+                    Salvar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={pending || gift.reserved}
+                    onClick={() => {
+                      if (!window.confirm("Remover este presente?")) return
+                      setError("")
+                      startTransition(async () => finish(await removeGift(gift.id)))
+                    }}
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </form>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+export function GiftCategoryManager({
+  categories,
+}: {
+  categories: Array<{
+    id: string
+    name: string
+    slug: string
+    description: string
+    sortOrder: number
+    active: boolean
+    giftCount: number
+  }>
+}) {
+  const [message, setMessage] = useState("")
+  const [error, setError] = useState("")
+  const [pending, startTransition] = useTransition()
+
+  function finish(response: { ok: boolean; message?: string; error?: string }) {
+    if (!response.ok) setError(response.error ?? "Não foi possível salvar.")
+    else setMessage(response.message ?? "Categoria atualizada.")
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      {message ? <p role="status" className="text-sm text-olive-dark">{message}</p> : null}
+      {error ? <p role="alert" className="text-sm text-olive-dark">{error}</p> : null}
+
+      <form
+        className="grid gap-4 border border-olive/10 bg-white p-4 sm:grid-cols-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const formElement = event.currentTarget
+          const form = new FormData(formElement)
+          setError("")
+          startTransition(async () => {
+            const response = await saveGiftCategory({
+              name: String(form.get("name") ?? ""),
+              description: String(form.get("description") ?? ""),
+              sortOrder: Number(form.get("sortOrder") ?? 0),
+              active: form.get("active") === "on",
+            })
+            finish(response)
+            if (response.ok) formElement.reset()
+          })
+        }}
+      >
+        <h2 className="font-serif text-3xl text-olive-dark sm:col-span-2">Nova categoria</h2>
+        <label className="text-sm text-brown">
+          Nome
+          <input name="name" required className="field mt-2" />
+        </label>
+        <label className="text-sm text-brown">
+          Ordem
+          <input name="sortOrder" type="number" min={0} defaultValue={categories.length + 1} required className="field mt-2" />
+        </label>
+        <label className="text-sm text-brown sm:col-span-2">
+          Descrição
+          <textarea name="description" rows={2} className="field mt-2" />
+        </label>
+        <label className="flex min-h-11 items-center gap-3 text-sm text-brown">
+          <input type="checkbox" name="active" defaultChecked />
+          Ativa
+        </label>
+        <button type="submit" className="btn btn-primary" disabled={pending}>
+          {pending ? "Salvando..." : "Criar categoria"}
+        </button>
+      </form>
+
+      <ul className="flex flex-col gap-4">
+        {categories.map((category) => (
+          <li key={category.id}>
             <form
               className="grid gap-3 border border-olive/10 bg-white p-4 sm:grid-cols-2"
               onSubmit={(event) => {
@@ -94,56 +332,50 @@ export function GiftManager({ gifts }: { gifts: GiftItem[] }) {
                 setError("")
                 startTransition(async () => {
                   finish(
-                    await saveGift(
+                    await saveGiftCategory(
                       {
                         name: String(form.get("name") ?? ""),
-                        category: String(form.get("category") ?? ""),
+                        description: String(form.get("description") ?? ""),
                         sortOrder: Number(form.get("sortOrder") ?? 0),
                         active: form.get("active") === "on",
-                        description: String(form.get("description") ?? ""),
                       },
-                      gift.id,
+                      category.id,
                     ),
                   )
                 })
               }}
             >
-              <input type="hidden" name="description" defaultValue={gift.description} />
               <label className="text-sm text-brown">
                 Nome
-                <input name="name" defaultValue={gift.name} required className="field mt-2" />
+                <input name="name" defaultValue={category.name} required className="field mt-2" />
               </label>
-              <label className="text-sm text-brown">
-                Categoria
-                <select name="category" defaultValue={gift.category} className="field mt-2">
-                  {categories.map((category) => (
-                    <option key={category.value} value={category.value}>
-                      {category.label}
-                    </option>
-                  ))}
-                </select>
+              <p className="self-end text-sm text-brown">
+                Slug: {category.slug} · {category.giftCount} presente{category.giftCount === 1 ? "" : "s"}
+              </p>
+              <label className="text-sm text-brown sm:col-span-2">
+                Descrição
+                <textarea name="description" rows={2} defaultValue={category.description} className="field mt-2" />
               </label>
               <label className="text-sm text-brown">
                 Ordem
-                <input name="sortOrder" type="number" min={0} defaultValue={gift.sortOrder} required className="field mt-2" />
+                <input name="sortOrder" type="number" min={0} defaultValue={category.sortOrder} required className="field mt-2" />
               </label>
-              <p className="self-end text-sm text-brown">Status: {gift.reserved ? "Reservado" : "Disponível"}</p>
-              <label className="flex min-h-11 items-center gap-3 text-sm text-brown">
-                <input type="checkbox" name="active" defaultChecked={gift.active} />
-                Ativo
+              <label className="flex min-h-11 items-center gap-3 self-end text-sm text-brown">
+                <input type="checkbox" name="active" defaultChecked={category.active} />
+                Ativa
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 sm:col-span-2">
                 <button type="submit" className="btn btn-secondary" disabled={pending}>
                   Salvar
                 </button>
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  disabled={pending}
+                  disabled={pending || category.giftCount > 0}
                   onClick={() => {
-                    if (!window.confirm("Remover este presente?")) return
+                    if (!window.confirm("Excluir esta categoria?")) return
                     setError("")
-                    startTransition(async () => finish(await removeGift(gift.id)))
+                    startTransition(async () => finish(await removeGiftCategory(category.id)))
                   }}
                 >
                   Excluir

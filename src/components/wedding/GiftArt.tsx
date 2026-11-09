@@ -1,6 +1,4 @@
-import type { GiftCategory } from "@/types/gift"
-
-export function GiftArt({ category }: { category: GiftCategory }) {
+export function GiftArt({ category }: { category: string }) {
   return (
     <svg viewBox="0 0 320 240" className="h-full w-full" aria-hidden="true">
       <rect width="320" height="240" fill="#EFE7D8" />

@@ -1,18 +1,38 @@
 import { config as loadEnv } from "dotenv"
 import { generateInvitationCode } from "../src/lib/invitation-code"
+import { categoryIdForLegacyCode, LEGACY_GIFT_CATEGORIES } from "../src/lib/gift-categories"
+import {
+  assertSeedWriteAllowed,
+  redactSeedTarget,
+  resolveSeedDatabaseTarget,
+} from "../src/lib/seed-db-guard"
 
-loadEnv({ path: ".env.local", quiet: true })
-loadEnv({ path: ".env", quiet: true })
+/**
+ * Safety: never silently target Production via .env.local.
+ * Require KALE_SEED_DATABASE_URL (local isolated Postgres).
+ * Optional: KALE_SEED_LOAD_DOTENV=true loads .env only (still not .env.local).
+ */
+if (process.env.KALE_SEED_LOAD_DOTENV === "true") {
+  loadEnv({ path: ".env", quiet: true })
+}
 
 async function main() {
+  const target = resolveSeedDatabaseTarget()
+  assertSeedWriteAllowed(target)
+  console.log(JSON.stringify({ seedTarget: redactSeedTarget(target) }))
+
+  process.env.DATABASE_URL = target.url
+  process.env.DIRECT_URL = target.url
+
   const { prisma } = await import("../src/lib/db/prisma")
+  await seedGiftCategories(prisma)
   await seedGifts(prisma)
   await seedDemoInvitations(prisma)
   await prisma.$disconnect()
 }
 
-main().catch(() => {
-  console.error("Falha ao executar o seed.")
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : "Falha ao executar o seed.")
   process.exit(1)
 })
 
@@ -58,25 +78,43 @@ const demoInvitations = [
   },
 ]
 
+async function seedGiftCategories(prisma: Awaited<typeof import("../src/lib/db/prisma")>["prisma"]) {
+  // Create-only: never overwrite admin customizations (name/description/order/active).
+  await prisma.giftCatalogCategory.createMany({
+    data: LEGACY_GIFT_CATEGORIES.map((category) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      sortOrder: category.sortOrder,
+      active: true,
+    })),
+    skipDuplicates: true,
+  })
+}
+
 async function seedGifts(prisma: Awaited<typeof import("../src/lib/db/prisma")>["prisma"]) {
   for (const gift of gifts) {
-    await prisma.gift.upsert({
+    const categoryId = categoryIdForLegacyCode(gift.category)
+    const existing = await prisma.gift.findUnique({
       where: { slug: gift.slug },
-      update: {
+      select: { id: true },
+    })
+
+    if (existing) {
+      // Never wipe image/description/active/name/category for existing production rows.
+      continue
+    }
+
+    await prisma.gift.create({
+      data: {
+        slug: gift.slug,
         name: gift.name,
-        category: gift.category,
+        categoryId,
+        legacyCategory: gift.category,
         description: null,
         image: null,
         sortOrder: gift.sortOrder,
         active: true,
-      },
-      create: {
-        slug: gift.slug,
-        name: gift.name,
-        category: gift.category,
-        description: null,
-        image: null,
-        sortOrder: gift.sortOrder,
       },
     })
   }
@@ -113,4 +151,3 @@ async function seedDemoInvitations(prisma: Awaited<typeof import("../src/lib/db/
     })
   }
 }
-

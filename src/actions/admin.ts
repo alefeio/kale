@@ -8,9 +8,12 @@ import { invitationShareText, invitationUrl } from "@/lib/invitation-link"
 import { getResolvedWeddingSettings } from "@/services/wedding-settings"
 import { createInvitationToken } from "@/lib/invitation-token"
 import { prisma } from "@/lib/db/prisma"
+import { uploadPublicSiteImage } from "@/lib/apimg"
+import { legacyCodeForCategorySlug, slugifyCategoryName } from "@/lib/gift-categories"
 import {
   addGuestSchema,
   createInvitationSchema,
+  giftCategoryInputSchema,
   giftInputSchema,
   recordIdSchema,
   updateGuestSchema,
@@ -249,10 +252,21 @@ export async function copyInvitation(id: string): Promise<AdminActionResult> {
   return { ok: true, ...(await credentials(invitation.token, invitation.code)) }
 }
 
+async function resolveGiftCategory(categoryId: string) {
+  return prisma.giftCatalogCategory.findUnique({
+    where: { id: categoryId },
+    select: { id: true, slug: true, active: true },
+  })
+}
+
 export async function saveGift(input: unknown, id?: string): Promise<AdminActionResult> {
   await requireAdmin()
   const parsed = giftInputSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: "Revise os dados do presente." }
+
+  const category = await resolveGiftCategory(parsed.data.categoryId)
+  if (!category) return { ok: false, error: "Categoria não encontrada." }
+  const legacyCategory = legacyCodeForCategorySlug(category.slug)
 
   if (id) {
     const parsedId = recordIdSchema.safeParse(id)
@@ -261,7 +275,8 @@ export async function saveGift(input: unknown, id?: string): Promise<AdminAction
       where: { id: parsedId.data },
       data: {
         name: parsed.data.name,
-        category: parsed.data.category,
+        categoryId: category.id,
+        legacyCategory,
         sortOrder: parsed.data.sortOrder,
         active: parsed.data.active,
         description: parsed.data.description ?? null,
@@ -279,7 +294,8 @@ export async function saveGift(input: unknown, id?: string): Promise<AdminAction
       data: {
         slug,
         name: parsed.data.name,
-        category: parsed.data.category,
+        categoryId: category.id,
+        legacyCategory,
         sortOrder: parsed.data.sortOrder,
         active: parsed.data.active,
         description: parsed.data.description ?? null,
@@ -288,8 +304,120 @@ export async function saveGift(input: unknown, id?: string): Promise<AdminAction
   }
 
   revalidatePath("/admin/presentes")
+  revalidatePath("/admin/categorias")
+  revalidatePath("/")
   revalidatePath("/admin")
   return { ok: true, message: "Presente atualizado." }
+}
+
+export async function uploadGiftImage(formData: FormData): Promise<AdminActionResult & { url?: string }> {
+  await requireAdmin()
+  const giftId = recordIdSchema.safeParse(String(formData.get("giftId") ?? ""))
+  if (!giftId.success) return { ok: false, error: "Presente não encontrado." }
+  const file = formData.get("file")
+  if (!(file instanceof File)) return { ok: false, error: "Selecione uma imagem." }
+
+  const gift = await prisma.gift.findUnique({
+    where: { id: giftId.data },
+    select: { id: true, image: true, imagePublicId: true },
+  })
+  if (!gift) return { ok: false, error: "Presente não encontrado." }
+
+  const uploaded = await uploadPublicSiteImage(file)
+  if (!uploaded.ok) return { ok: false, error: uploaded.error }
+
+  await prisma.gift.update({
+    where: { id: gift.id },
+    data: {
+      image: uploaded.url,
+      imagePublicId: uploaded.publicId,
+    },
+  })
+
+  revalidatePath("/admin/presentes")
+  revalidatePath("/")
+  return { ok: true, message: "Foto atualizada.", url: uploaded.url }
+}
+
+export async function removeGiftImage(id: string): Promise<AdminActionResult> {
+  await requireAdmin()
+  const parsed = recordIdSchema.safeParse(id)
+  if (!parsed.success) return { ok: false, error: "Presente não encontrado." }
+
+  await prisma.gift.update({
+    where: { id: parsed.data },
+    data: { image: null, imagePublicId: null },
+  })
+
+  revalidatePath("/admin/presentes")
+  revalidatePath("/")
+  return { ok: true, message: "Foto removida. O presente voltará à imagem padrão quando aplicável." }
+}
+
+export async function saveGiftCategory(input: unknown, id?: string): Promise<AdminActionResult> {
+  await requireAdmin()
+  const parsed = giftCategoryInputSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: "Revise os dados da categoria." }
+
+  if (id) {
+    const parsedId = recordIdSchema.safeParse(id)
+    if (!parsedId.success) return { ok: false, error: "Categoria não encontrada." }
+    await prisma.giftCatalogCategory.update({
+      where: { id: parsedId.data },
+      data: {
+        name: parsed.data.name,
+        description: parsed.data.description ?? null,
+        sortOrder: parsed.data.sortOrder,
+        active: parsed.data.active,
+      },
+    })
+  } else {
+    const base = slugifyCategoryName(parsed.data.name)
+    let slug = base
+    for (let attempt = 1; attempt < 6; attempt += 1) {
+      const existing = await prisma.giftCatalogCategory.findUnique({ where: { slug }, select: { id: true } })
+      if (!existing) break
+      slug = `${base}-${attempt + 1}`
+    }
+    await prisma.giftCatalogCategory.create({
+      data: {
+        name: parsed.data.name,
+        slug,
+        description: parsed.data.description ?? null,
+        sortOrder: parsed.data.sortOrder,
+        active: parsed.data.active,
+      },
+    })
+  }
+
+  revalidatePath("/admin/categorias")
+  revalidatePath("/admin/presentes")
+  revalidatePath("/")
+  return { ok: true, message: "Categoria atualizada." }
+}
+
+export async function removeGiftCategory(id: string): Promise<AdminActionResult> {
+  await requireAdmin()
+  const parsed = recordIdSchema.safeParse(id)
+  if (!parsed.success) return { ok: false, error: "Categoria não encontrada." }
+
+  const category = await prisma.giftCatalogCategory.findUnique({
+    where: { id: parsed.data },
+    select: { _count: { select: { gifts: true } } },
+  })
+  if (!category) return { ok: false, error: "Categoria não encontrada." }
+  if (category._count.gifts > 0) {
+    return {
+      ok: false,
+      error: "Esta categoria possui presentes vinculados. Desative-a ou mova os presentes antes de excluir.",
+    }
+  }
+
+  await prisma.giftCatalogCategory.delete({ where: { id: parsed.data } })
+  revalidatePath("/admin/categorias")
+  revalidatePath("/admin/presentes")
+  revalidatePath("/")
+  return { ok: true, message: "Categoria removida." }
 }
 
 export async function removeGift(id: string): Promise<AdminActionResult> {

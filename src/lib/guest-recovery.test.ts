@@ -41,6 +41,7 @@ const sampleGift: Gift = {
   id: "gift-1",
   name: "Jogo de panelas",
   category: "cozinha",
+  categoryLabel: "Cozinha",
   image: "/images/gifts/panelas.jpg",
   status: "available",
 }

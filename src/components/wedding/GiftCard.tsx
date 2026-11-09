@@ -28,7 +28,7 @@ export function GiftCard({
         {showPhoto ? (
           <Image
             src={gift.image}
-            alt=""
+            alt={gift.name}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover"
@@ -40,7 +40,7 @@ export function GiftCard({
       </div>
       <div className="flex flex-1 flex-col pt-5">
         <p className="text-[0.65rem] tracking-[0.22em] text-brown uppercase">
-          {giftCategoryLabels[gift.category]}
+          {gift.categoryLabel || giftCategoryLabels[gift.category] || gift.category}
         </p>
         <h3 className="mt-2 font-serif text-2xl text-olive-dark">{gift.name}</h3>
         <p className="mt-2 min-h-6 text-sm leading-6 text-brown">{gift.description}</p>
